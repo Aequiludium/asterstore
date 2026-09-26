@@ -1,0 +1,19 @@
+{
+  "python": "3.12.12 (main, Feb 12 2026, 00:42:14) [Clang 21.1.4 ]",
+  "platform": "Linux-5.15.0-181-generic-x86_64-with-glibc2.35",
+  "storage": "local temporary directory; device not isolated",
+  "cache": "warm; source just written; no flushing",
+  "durable_publications": true,
+  "collection_durable": true,
+  "published_generations": 6,
+  "current_files": 20,
+  "bytes_per_file": 128,
+  "reused_files_per_update": 19,
+  "retired_publications": 5,
+  "deleted_objects": 5,
+  "deleted_declared_data_bytes": 640,
+  "preview_seconds": 0.008663435000926256,
+  "collect_seconds_including_sync": 0.04634024703409523,
+  "completed_retry_seconds": 0.02356092695845291,
+  "measurement": "one uncontended sample; no claims about cold cache, power loss or NFS"
+}

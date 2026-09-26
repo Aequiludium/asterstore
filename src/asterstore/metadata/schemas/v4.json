@@ -1,0 +1,786 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "asterstore v4 declaration and managed creation protocol",
+  "$comment": "Structural validation only; codecs enforce UTF-8 byte bounds, membership closure, counter relationships and path semantics. Repository services enforce identity ownership and commit authority.",
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\ud800-\\udfff]+$",
+      "$comment": "The codec additionally enforces at most 4096 UTF-8 bytes, without normalization."
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^:\\\\\\u0000-\\u001f\\u007f-\\u009f\\ud800-\\udfff/]+(?:/[^:\\\\\\u0000-\\u001f\\u007f-\\u009f\\ud800-\\udfff/]+)*$",
+      "$comment": "The codec also requires printable characters (Python str.isprintable)."
+    },
+    "locator": {
+      "type": "object",
+      "properties": {
+        "resource_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "relative_path": {
+          "$ref": "#/$defs/path"
+        }
+      },
+      "required": [
+        "resource_id",
+        "relative_path"
+      ],
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "management": {
+          "enum": [
+            "registered",
+            "managed"
+          ]
+        },
+        "byte_stability": {
+          "enum": [
+            "mutable_or_unknown",
+            "producer_immutable",
+            "coordinated_immutable"
+          ]
+        },
+        "history": {
+          "enum": [
+            "current_only",
+            "versioned"
+          ]
+        }
+      },
+      "required": [
+        "management",
+        "byte_stability",
+        "history"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "management": {
+                "const": "managed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "byte_stability": {
+                "const": "coordinated_immutable"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "byte_stability": {
+                "enum": [
+                  "mutable_or_unknown",
+                  "producer_immutable"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "declaration": {
+      "type": "object",
+      "properties": {
+        "dataset_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "publication_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "capabilities": {
+          "$ref": "#/$defs/capabilities"
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "object_id": {
+                "$ref": "#/$defs/identifier"
+              },
+              "locator": {
+                "$ref": "#/$defs/locator"
+              }
+            },
+            "required": [
+              "object_id",
+              "locator"
+            ],
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "$ref": "#/$defs/identifier"
+              },
+              "object_id": {
+                "$ref": "#/$defs/identifier"
+              }
+            },
+            "required": [
+              "key",
+              "object_id"
+            ],
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "dataset_id",
+        "publication_id",
+        "capabilities",
+        "objects",
+        "members"
+      ],
+      "additionalProperties": false
+    },
+    "repository": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "const": 4
+        },
+        "kind": {
+          "const": "repository"
+        },
+        "store_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "resource_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          },
+          "uniqueItems": true
+        },
+        "required_features": {
+          "enum": [
+            [
+              "registered"
+            ],
+            [
+              "registered",
+              "managed"
+            ],
+            [
+              "registered",
+              "lifecycle"
+            ],
+            [
+              "registered",
+              "managed",
+              "lifecycle"
+            ]
+          ]
+        },
+        "managed_resource_id": {
+          "$ref": "#/$defs/identifier"
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "store_id",
+        "resource_ids",
+        "required_features"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "required_features": {
+                "contains": {
+                  "const": "managed"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "managed_resource_id"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "managed_resource_id"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "publication": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "const": 4
+        },
+        "kind": {
+          "const": "publication"
+        },
+        "store_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "expected_generation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775806
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "declaration": {
+          "$ref": "#/$defs/declaration"
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "store_id",
+        "operation_id",
+        "expected_generation",
+        "generation",
+        "declaration"
+      ],
+      "additionalProperties": false
+    },
+    "object": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "const": 4
+        },
+        "kind": {
+          "const": "object"
+        },
+        "store_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "object_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "management": {
+          "enum": [
+            "registered",
+            "managed"
+          ]
+        },
+        "locator": {
+          "$ref": "#/$defs/locator"
+        },
+        "byte_stability": {
+          "enum": [
+            "mutable_or_unknown",
+            "producer_immutable",
+            "coordinated_immutable"
+          ]
+        },
+        "creator_operation_id": {
+          "$ref": "#/$defs/identifier"
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "store_id",
+        "object_id",
+        "management",
+        "locator",
+        "byte_stability"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "management": {
+                "const": "managed"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "creator_operation_id"
+            ],
+            "properties": {
+              "byte_stability": {
+                "const": "coordinated_immutable"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "creator_operation_id"
+              ]
+            },
+            "properties": {
+              "byte_stability": {
+                "enum": [
+                  "mutable_or_unknown",
+                  "producer_immutable"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "managed_request": {
+      "type": "object",
+      "properties": {
+        "store_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "dataset_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "publication_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "format_version": {
+          "type": "integer",
+          "const": 4
+        },
+        "kind": {
+          "const": "managed_request"
+        },
+        "expected_generation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775806
+        },
+        "history": {
+          "enum": [
+            "current_only",
+            "versioned"
+          ]
+        }
+      },
+      "required": [
+        "store_id",
+        "operation_id",
+        "dataset_id",
+        "publication_id",
+        "format_version",
+        "kind",
+        "expected_generation",
+        "history"
+      ],
+      "additionalProperties": false
+    },
+    "fixed_retention": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "const": 4
+        },
+        "kind": {
+          "const": "fixed_retention"
+        },
+        "store_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "dataset_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "publication_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "scope": {
+          "enum": [
+            "metadata",
+            "objects"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "active": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "store_id",
+        "name",
+        "dataset_id",
+        "publication_id",
+        "scope",
+        "revision",
+        "active"
+      ],
+      "additionalProperties": false
+    },
+    "retired_declaration": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "const": 4
+        },
+        "kind": {
+          "const": "retired_declaration"
+        },
+        "collection_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "publication": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/publication"
+            },
+            {
+              "properties": {
+                "declaration": {
+                  "properties": {
+                    "capabilities": {
+                      "properties": {
+                        "management": {
+                          "const": "managed"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "collection_id",
+        "publication"
+      ],
+      "additionalProperties": false
+    },
+    "governance_plan": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "const": 4
+        },
+        "kind": {
+          "const": "governance_plan"
+        },
+        "store_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "retirements": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/publication"
+              },
+              {
+                "properties": {
+                  "declaration": {
+                    "properties": {
+                      "capabilities": {
+                        "properties": {
+                          "management": {
+                            "const": "managed"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "uniqueItems": true
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/object"
+              },
+              {
+                "properties": {
+                  "management": {
+                    "const": "managed"
+                  }
+                }
+              }
+            ]
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "store_id",
+        "operation_id",
+        "retirements",
+        "objects"
+      ],
+      "additionalProperties": false
+    },
+    "governance_progress": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "const": 4
+        },
+        "kind": {
+          "const": "governance_progress"
+        },
+        "store_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "outcomes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "object_id": {
+                "$ref": "#/$defs/identifier"
+              },
+              "status": {
+                "enum": [
+                  "deleted",
+                  "missing",
+                  "protected"
+                ]
+              }
+            },
+            "required": [
+              "object_id",
+              "status"
+            ],
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "retired": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "dataset_id": {
+                "$ref": "#/$defs/identifier"
+              },
+              "publication_id": {
+                "$ref": "#/$defs/identifier"
+              }
+            },
+            "required": [
+              "dataset_id",
+              "publication_id"
+            ],
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "store_id",
+        "operation_id",
+        "outcomes",
+        "retired",
+        "complete"
+      ],
+      "additionalProperties": false
+    },
+    "managed_abandonment": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "const": 4
+        },
+        "kind": {
+          "const": "managed_abandonment"
+        },
+        "request": {
+          "$ref": "#/$defs/managed_request"
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "request"
+      ],
+      "additionalProperties": false
+    },
+    "managed_cleanup_plan": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "const": 4
+        },
+        "kind": {
+          "const": "managed_cleanup_plan"
+        },
+        "request": {
+          "$ref": "#/$defs/managed_request"
+        },
+        "location": {
+          "enum": [
+            "private",
+            "installed"
+          ]
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/path"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "request",
+        "location",
+        "files"
+      ],
+      "additionalProperties": false
+    },
+    "managed_cleanup_progress": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "const": 4
+        },
+        "kind": {
+          "const": "managed_cleanup_progress"
+        },
+        "store_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "outcomes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "$ref": "#/$defs/path"
+              },
+              "status": {
+                "enum": [
+                  "deleted",
+                  "missing"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "status"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "store_id",
+        "operation_id",
+        "outcomes",
+        "complete"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/repository"
+    },
+    {
+      "$ref": "#/$defs/publication"
+    },
+    {
+      "$ref": "#/$defs/object"
+    },
+    {
+      "$ref": "#/$defs/managed_request"
+    },
+    {
+      "$ref": "#/$defs/fixed_retention"
+    },
+    {
+      "$ref": "#/$defs/retired_declaration"
+    },
+    {
+      "$ref": "#/$defs/governance_plan"
+    },
+    {
+      "$ref": "#/$defs/governance_progress"
+    },
+    {
+      "$ref": "#/$defs/managed_abandonment"
+    },
+    {
+      "$ref": "#/$defs/managed_cleanup_plan"
+    },
+    {
+      "$ref": "#/$defs/managed_cleanup_progress"
+    }
+  ]
+}

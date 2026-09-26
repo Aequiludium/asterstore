@@ -1,0 +1,33 @@
+{
+  "measured_at_utc": "2026-09-24T10:34:38.255834+00:00",
+  "python": "3.12.12",
+  "platform": "Linux-5.15.0-181-generic-x86_64-with-glibc2.35",
+  "asterstore": "0.1.0.dev0",
+  "storage_parent": "/tmp",
+  "storage_label": "unspecified; not storage-qualified",
+  "cache": "warm, uncontrolled OS cache; sequential measurements",
+  "durable": true,
+  "workload": {
+    "publications": 10,
+    "files_per_publication": 20,
+    "bytes_per_file": 128,
+    "repeats": 7,
+    "selections": 10000,
+    "reference_names": 1
+  },
+  "timings": {
+    "prepare_write_commit_median_ms": 34.3376565,
+    "open_current_median_ms": 0.307153,
+    "cached_files_mean_ns_including_assert": 134.2858,
+    "retain_release_cycle_median_ms": 8.449874,
+    "metadata_preview_median_ms": 6.259972,
+    "direct_read_bytes_median_ms": 0.189419,
+    "bound_read_bytes_median_ms": 0.188655
+  },
+  "limitations": [
+    "No data engine or business query",
+    "No concurrent writers",
+    "No physical GC",
+    "One local sample, not a throughput claim"
+  ]
+}

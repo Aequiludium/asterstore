@@ -1,0 +1,48 @@
+[project]
+name = "asterstore"
+version = "0.1.0.dev0"
+description = "Local file-based data lifecycle management"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+maintainers = [{ name = "Aequiludium" }]
+
+[project.urls]
+Repository = "https://github.com/Aequiludium/asterstore"
+Documentation = "https://github.com/Aequiludium/asterstore/blob/main/README.md"
+Issues = "https://github.com/Aequiludium/asterstore/issues"
+Changelog = "https://github.com/Aequiludium/asterstore/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+polars = ["polars>=1.32,<2"]
+
+[build-system]
+requires = ["uv_build>=0.10.7,<0.11"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1", "mypy>=1.15,<2", "jsonschema>=4.18,<5"]
+
+[tool.uv]
+required-version = ">=0.10.7"
+
+[tool.uv.build-backend]
+source-include = ["docs/**", "tests/**", "examples/**", "benchmarks/**", "tools/**", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/asterstore", "tools", "examples", "benchmarks"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config"]
