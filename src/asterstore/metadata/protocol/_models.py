@@ -1,4 +1,4 @@
-"""v4 records for the unified declaration model; no filesystem access."""
+"""records for the unified declaration model; no filesystem access."""
 
 from dataclasses import dataclass
 from hashlib import sha256
@@ -9,7 +9,7 @@ from asterstore.metadata.declarations import Declaration
 from asterstore.metadata.identity import MAX_IDENTIFIER_BYTES, validate_identifier
 from asterstore.metadata.membership import FileSet, Locator, Object
 
-FORMAT_VERSION = 4
+FORMAT_VERSION = 1
 MAX_GENERATION = 2**63 - 1
 
 

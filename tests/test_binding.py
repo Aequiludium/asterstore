@@ -1,60 +1,6 @@
-from pathlib import Path
-
 import pytest
 
-from asterstore import Dataset, ObjectRef, Publication, Repository, UnknownObjectError
-
-
-def test_binding_does_not_create_or_require_files(tmp_path: Path, publication: Publication) -> None:
-    root = tmp_path / "not-created"
-    binding = Repository(root).bind(publication)
-    assert binding.files() == tuple(root / obj.key for obj in publication.objects)
-    assert not root.exists()
-
-
-def test_selection_is_limited_to_declared_members(tmp_path: Path, publication: Publication) -> None:
-    binding = Repository(tmp_path).bind(publication)
-    (tmp_path / "unpublished.bin").write_bytes(b"later")
-    keys = [obj.key for obj in reversed(publication.objects)]
-    assert binding.files(keys=keys) == tuple(tmp_path / key for key in keys)
-    assert binding.files(keys=[]) == ()
-    with pytest.raises(UnknownObjectError, match="bound publication"):
-        binding.files(keys=["unpublished.bin"])
-    with pytest.raises(TypeError, match="single string"):
-        binding.files(keys=keys[0])
-
-
-def test_binding_a_new_declaration_preserves_old_membership(tmp_path: Path) -> None:
-    repository = Repository(tmp_path)
-    dataset = Dataset("prices")
-    old = repository.bind(Publication(dataset, "p1", [ObjectRef("a.bin")]))
-    new = repository.bind(Publication(dataset, "p2", [ObjectRef("b.bin")]))
-    assert old.files() == (tmp_path / "a.bin",)
-    assert new.files() == (tmp_path / "b.bin",)
-
-
-def test_binding_does_not_freeze_or_hide_missing_bytes(tmp_path: Path) -> None:
-    path = tmp_path / "mutable.bin"
-    path.write_bytes(b"old")
-    binding = Repository(tmp_path).bind(
-        Publication(Dataset("current"), "p1", [ObjectRef(path.name)])
-    )
-    path.write_bytes(b"new")
-    assert binding.files()[0].read_bytes() == b"new"
-    path.unlink()
-    with pytest.raises(FileNotFoundError):
-        binding.files()[0].read_bytes()
-
-
-def test_empty_publication_and_relative_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.chdir(tmp_path)
-    repository = Repository("data")
-    monkeypatch.chdir(tmp_path.parent)
-    binding = repository.bind(Publication(Dataset("empty"), "p0", []))
-    assert repository.root == tmp_path / "data"
-    assert binding.files() == ()
+from asterstore import Repository
 
 
 def explicit_declaration():
@@ -159,18 +105,6 @@ def test_resource_capture_is_lexical_and_relative_roots_are_fixed(tmp_path, monk
     from asterstore import Locator
 
     assert resources.locate(Locator("results", "part.bin")) == tmp_path / "relative/part.bin"
-
-
-def test_new_declaration_cannot_be_smuggled_into_v3_publishing(tmp_path):
-    from asterstore import InvalidDeclarationError
-    from asterstore.metadata import PublishedRecord
-
-    declaration = explicit_declaration()
-    with pytest.raises(InvalidDeclarationError):
-        Repository(tmp_path / "not-created").prepare(declaration)
-    with pytest.raises(InvalidDeclarationError):
-        PublishedRecord(1, "a" * 32, declaration)
-    assert not (tmp_path / "not-created").exists()
 
 
 def test_resource_mapping_rejects_file_parent_collision_across_resources(tmp_path):

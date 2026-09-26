@@ -1,4 +1,4 @@
-"""Regressions from the independent v4 recovery and construction audit."""
+"""Regressions from the independent recovery and construction audit."""
 
 import json
 from pathlib import Path
@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 from asterstore import FileSet, HistoryAccess, Repository, StoreCorruptionError
-from asterstore.publishing.managed import _candidate
+from asterstore.governance import _service
+from asterstore.publishing import _candidate
 from asterstore.publishing.transactions import _commit
-from asterstore.retention.governance import _service
 from asterstore.storage import _files
 from asterstore.storage.registry import (
     collection_directory,
@@ -28,7 +28,7 @@ def create(root):
 
 
 def prepare(repo, pid, gen=0, *, dataset="data", durable=False):
-    return repo.prepare_managed(
+    return repo.prepare(
         dataset,
         publication_id=pid,
         operation_id=pid,
@@ -348,7 +348,7 @@ def test_completed_gc_retry_preserves_protected_outcome_after_reference_release(
     tmp_path, monkeypatch
 ):
     from asterstore import RetentionScope
-    from asterstore.retention.governance import _collection
+    from asterstore.governance import _collection
 
     repo = create(tmp_path)
     publish(repo, "p1")

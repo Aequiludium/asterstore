@@ -6,31 +6,20 @@
 
 `asterstore` 管理数据的声明、发布、引用、保留、检查和回收，让不同框架共享可解释的数据生命周期，同时保持普通读取轻量。
 
-项目处于 `0.1.0rc1` 本地候选阶段。v4 已支持 registered 登记、managed 发布与复用、候选恢复，以及两种范围的直接保留、退役、可恢复文件回收和失败候选清理。新仓库须显式初始化并声明必要功能；首版 API 与协议已建立[冻结基线](docs/compatibility.md)，候选尚未发布。发布依赖图、元数据压缩和完整审计仍未完成。原有 v3 生命周期保留为独立实现，v1/v2 只读兼容，没有自动升级。
+当前处于 `0.1.0.dev1` 开发阶段。只维护一种声明模型、一种磁盘格式和一套生命周期实现；旧开发格式与旧 API 已移除，尚未作首版兼容冻结。下一步是实际应用接入验证，见[范围与门槛](docs/release-scope.md)。
 
-新的目标设计见 [治理规范草案 0.1](docs/spec/README.md)：既有目录登记与受管发布并列，明确能力、元数据权威性、保留范围和验收要求。该规范尚未全部实现；身份与路径分离已在 v3 落地，旧仓库不自动升级。
-
-设计优先级：通用治理语义和性能契约优先。继承 Aster 的轻量读取、边界检查、显式保留与可恢复运维原则，不承诺兼容旧 Aster 的 API、目录布局或元数据实现。Aster 接入由应用侧适配，必要时重构应用或显式迁移。
-
-已提供新的[声明与资源绑定模型](docs/declarations.md)：逻辑成员、对象身份和物理定位分离，显式区分 managed/registered 能力。当前支持内存绑定、引擎读取及 v4 registered 持久登记；新模型的 managed 发布、复用与恢复也已接入 v4；直接保留与 GC 也已接通。详见 [managed v4](docs/managed-v4.md) 和 [治理 v4](docs/governance-v4.md)。
+已实现外部数据登记、受管发布与复用、固定保留、回收和候选恢复/清理。核心无第三方运行依赖；普通读取不逐文件校验，不扫描全仓，不自动建立保留。
 
 ## 开发入口
 
 ```bash
-uv sync --locked
-uv run --locked python examples/publication.py
-uv run --locked python examples/retention.py
-uv run --locked python examples/reuse.py
-uv run --locked python examples/collection.py
-uv run --locked python examples/candidate_cleanup.py
-uv run --locked python examples/cleanup_v4.py
-uv run --locked python examples/binding.py
-uv run --locked python examples/declarations.py
-uv run --locked python examples/registration.py
+uv sync --locked --extra polars
 uv run --locked python examples/managed_declarations.py
-uv run --locked python examples/governance_v4.py
-uv run --locked pytest
-uv build --no-sources
+uv run --locked python examples/registration.py
+uv run --locked python examples/governance.py
+uv run --locked python examples/cleanup.py
+uv run --locked --extra polars python examples/parquet.py
+uv run --locked --extra polars pytest
 ```
 
 发布示例在临时目录中完成写入、发布、重新打开、历史绑定与候选恢复。核心没有第三方运行时依赖。
@@ -45,7 +34,7 @@ repository.initialize(
     managed_resource_id="results",
     lifecycle=True,
 )
-with repository.prepare_managed(
+with repository.prepare(
     "prices",
     publication_id="batch:1",
     operation_id="produce:1",
@@ -89,28 +78,13 @@ paths = binding.files()  # 直接交给读取引擎；不逐文件预检
 
 ## 文档
 
-- [治理规范入口](docs/spec/README.md)：目标语义、实现差距与规范文档。
-- [设计与保证边界](docs/design.md)：原则和核心规范导航。
-- [保留、退役与回收设计](docs/retention.md)：引用、共享对象、退役及物理回收的实现语义与保证边界。
-- [可选引擎接入](docs/integrations.md)：Polars、延迟执行与显式保留。
-- [候选残留治理](docs/candidates.md)：显式放弃、私有文件清理和中断重试。
-- [场景推演](docs/retention-scenarios.md)：共享对象、引用竞争、回收中断与验收规格。
-- [实施路线与验收](docs/roadmap.md)：阶段交付物、需要验证的行为和暂缓事项。
-- [兼容与冻结决议](docs/compatibility.md)：0.1 系列 API、旧接口和磁盘格式边界。
-- [仓库自动化](docs/automation.md)：CI 分层、依赖 Bot、安全扫描与合并门槛。
-- [候选与正式发行流程](docs/releasing.md)：制品保存、校验和发布步骤。
-- [首版范围与冻结检查](docs/release-scope.md)：v4 推荐入口、旧协议兼容、已有证据与发行缺项。
-- [开源实现学习记录](docs/research.md)：源码证据、适合吸收的机制及其限制。
-- [项目结构](docs/architecture.md)：子包职责、导出与依赖方向。
-- [新声明 v4 协议](docs/protocol-v4.md)：Store 身份、registered 持久登记、对象身份约束与恢复。
-- [受管 v3 协议](docs/protocol-v3.md)：逻辑身份、版本门槛、JSON Schema 与兼容边界。
-- [历史 v2 协议](docs/protocol-v2.md)：v3 沿用的记录结构、引用与回收流程。
-- [历史 v1 协议](docs/protocol.md)：旧仓库的只读兼容格式。
-- [声明与资源绑定](docs/declarations.md)：Member/Object/Locator、能力组合和外部数据的零 I/O 绑定。
-- [当前 API](docs/api.md)：已实现能力和未实现的边界。
-- [开发与构建](docs/development.md)：uv 环境、检查与独立安装验证。
-
-v4 治理示例见 [governance_v4.py](examples/governance_v4.py)，失败候选清理见 [cleanup_v4.py](examples/cleanup_v4.py) 和 [清理规范](docs/cleanup-v4.md)。以下为原有 v3 生命周期：具名引用和预览示例见 [examples/retention.py](examples/retention.py)。增量发布示例见 [examples/reuse.py](examples/reuse.py)。实际回收示例见 [examples/collection.py](examples/collection.py)。预览不删除文件；显式 collect 才执行退役与删除。候选残留治理示例见 [candidate_cleanup.py](examples/candidate_cleanup.py)。已提供可选 [Polars 接入](docs/integrations.md)、真实 Parquet 生命周期示例与读取清单规模测量；v4 已有历史、数据集、引用和回收日志的独立[规模测量](benchmarks/README.md#v4-历史数据集引用和回收日志)，并披露全仓扫描与完成重试成本；不代表生产容量或共享挂载资格。
+- [当前 API](docs/api.md)与[项目结构](docs/architecture.md)
+- [声明模型](docs/declarations.md)与[唯一磁盘协议](docs/protocol.md)
+- [发布](docs/publishing.md)、[治理](docs/governance.md)与[候选清理](docs/cleanup.md)
+- [引擎接入](docs/integrations.md)与[性能验证](benchmarks/README.md)
+- [开发格式边界](docs/compatibility.md)、[实施路线](docs/roadmap.md)与[目标规范](docs/spec/README.md)
+- [开发与构建](docs/development.md)、[仓库自动化](docs/automation.md)与[发行流程](docs/releasing.md)
+- [开源实现学习](docs/research.md)与[审计修复](docs/audit-fixes.md)
 
 ## License
 

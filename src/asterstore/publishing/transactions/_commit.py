@@ -1,4 +1,4 @@
-"""Shared v4 declaration commit with fixed requests and recoverable metadata writes."""
+"""Shared declaration commit with fixed requests and recoverable metadata writes."""
 
 from collections.abc import Callable
 from dataclasses import dataclass

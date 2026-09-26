@@ -33,8 +33,6 @@
 
 **C-02** `store_id`、`dataset_id`、`publication_id`、`release_id`、`object_id` 是不透明的逻辑标识符，分别在声明的作用域内唯一。发布完整身份是 `(store_id, dataset_id, publication_id)`。实现必须接受来源 ID 中的冒号、点和斜杠，按精确字符串比较，不偷偷做大小写折叠、Unicode 归一化或来源 ID 重命名。
 
-ID 必须非空、可编码为 UTF-8 且不含控制字符；协议必须在冻结时规定统一长度上限。当前 v3 已为 dataset_id、publication_id 和引用 name 规定 4096 UTF-8 字节持久上限；v4 也已将该上限应用于 Store、Object、Member、资源和操作等逻辑身份。ID 不直接用于拼接磁盘路径：路径 token 由实现编码或 hash 生成，读回时必须核对原 ID。标识符 hash 不等于数据内容校验。
-
 **C-03** member_key 属于发布中的逻辑命名空间；locator 属于物理位置空间。受管相对 locator 必须防止绝对路径、空段、`.`、`..` 和控制目录越界。root 是显式资源绑定，不从业务 ID 推导。为某些操作系统限制文件名，不能反向限制所有逻辑 ID。
 
 member_key 也按精确逻辑字符串比较，不自动继承 locator 的分隔符含义；首版语法及长度上限在 wire format 中统一规定。

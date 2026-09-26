@@ -1,17 +1,5 @@
-"""Pure identity and locator validation; no filesystem access or normalization."""
+"""Pure identity and locator validation."""
 
-from ._validation import (
-    MAX_IDENTIFIER_BYTES,
-    validate_identifier,
-    validate_legacy_name,
-    validate_object_key,
-    validate_record_identifiers,
-)
+from ._validation import MAX_IDENTIFIER_BYTES, validate_identifier, validate_object_key
 
-__all__ = [
-    "MAX_IDENTIFIER_BYTES",
-    "validate_identifier",
-    "validate_legacy_name",
-    "validate_object_key",
-    "validate_record_identifiers",
-]
+__all__ = ["MAX_IDENTIFIER_BYTES", "validate_identifier", "validate_object_key"]

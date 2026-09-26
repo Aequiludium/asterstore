@@ -1,4 +1,4 @@
-"""Managed v4 ownership, atomic visibility, precise recovery and read costs."""
+"""Managed ownership, atomic visibility, precise recovery and read costs."""
 
 import io
 import json
@@ -10,7 +10,6 @@ import pytest
 from asterstore import (
     CandidateStateError,
     Capabilities,
-    CollectionPolicy,
     Declaration,
     FileSet,
     HistoryAccess,
@@ -35,7 +34,7 @@ from asterstore.metadata.protocol import (
     encode_object_record,
     encode_store,
 )
-from asterstore.publishing.managed import _candidate
+from asterstore.publishing import _candidate
 from asterstore.publishing.transactions import _commit
 from asterstore.storage.registry import (
     managed_data_root,
@@ -53,7 +52,7 @@ def create(root):
 
 
 def prepare(repo, pid="p1", generation=0, *, op=None, durable=False):
-    return repo.prepare_managed(
+    return repo.prepare(
         "simulation",
         publication_id=pid,
         operation_id=op or pid,
@@ -92,11 +91,11 @@ def test_managed_publication_and_incremental_reuse(tmp_path):
     assert second.declaration.files.objects[0] == obj
     assert bound.files()[1].read_bytes() == b"second"
     assert repo.open("simulation", publication_id="p1").files() == old.files()
-    with repo.resume_managed("p1") as retry:
+    with repo.resume("p1") as retry:
         assert retry.commit() == first
     assert repo.describe("simulation") == second
-    assert repo.managed_status("p1").state == "historical"
-    assert repo.managed_status("p2").state == "current"
+    assert repo.candidate_status("p1").state == "historical"
+    assert repo.candidate_status("p2").state == "current"
     assert len(list(managed_data_root(tmp_path).rglob("*.bin"))) == 2
 
 
@@ -136,9 +135,9 @@ def test_operation_identity_reserved_across_entry_points(tmp_path):
     repo.register(empty, operation_id="ext", expected_generation=0)
     with pytest.raises(PublicationConflictError), prepare(repo, op="ext"):
         pass
-    with pytest.raises(CandidateStateError), repo.resume_managed("p1"):
+    with pytest.raises(CandidateStateError), repo.resume("p1"):
         pass
-    assert repo.managed_status("p1").state == "writing"
+    assert repo.candidate_status("p1").state == "writing"
 
 
 @pytest.mark.parametrize("point", ["seal", "plan", "rename", "object", "history", "current"])
@@ -193,7 +192,7 @@ def test_every_persistent_boundary_is_recoverable(tmp_path, monkeypatch, point, 
             candidate.seal()  # Only the original in-memory writer can finish an unsealed request.
     visible = repo.describe("simulation")
     assert visible.declaration.publication_id == ("p2" if point == "current" and after else "p1")
-    with repo.resume_managed("p2") as candidate:
+    with repo.resume("p2") as candidate:
         result = candidate.commit()
     assert result.generation == 2
     assert repo.open("simulation").files()[0].read_bytes() == b"p2"
@@ -206,8 +205,8 @@ def test_stale_candidate_never_rebases_or_installs_data(tmp_path):
         candidate.write_bytes("new", b"loser", relative_path="data.bin")
         candidate.seal()
     winner = publish(repo)
-    assert repo.managed_status("loser").state == "conflict"
-    with repo.resume_managed("loser") as candidate, pytest.raises(PublicationConflictError):
+    assert repo.candidate_status("loser").state == "conflict"
+    with repo.resume("loser") as candidate, pytest.raises(PublicationConflictError):
         candidate.commit()
     assert repo.describe("simulation") == winner
     assert not (managed_data_root(tmp_path) / token("loser")).exists()
@@ -229,7 +228,7 @@ def test_seal_checks_declared_files_only_at_write_boundary(tmp_path, damage):
             path.mkdir()
         with pytest.raises(StoreCorruptionError):
             candidate.seal()
-    assert repo.managed_status("p1").state == "writing"
+    assert repo.candidate_status("p1").state == "writing"
 
 
 def test_missing_creation_evidence_is_not_reconstructed(tmp_path):
@@ -237,7 +236,7 @@ def test_missing_creation_evidence_is_not_reconstructed(tmp_path):
     first = publish(repo)
     proof = object_record_path(tmp_path, first.declaration.files.objects[0].object_id)
     proof.unlink()
-    with repo.resume_managed("p1") as candidate, pytest.raises(StoreCorruptionError):
+    with repo.resume("p1") as candidate, pytest.raises(StoreCorruptionError):
         candidate.commit()
     assert not proof.exists()
 
@@ -299,7 +298,7 @@ def test_strong_retry_syncs_weakly_committed_new_bytes(tmp_path, monkeypatch):
         original(file)
 
     monkeypatch.setattr(storage_files, "sync_file", tracked)
-    with repo.resume_managed("p1", durable=True) as candidate:
+    with repo.resume("p1", durable=True) as candidate:
         candidate.commit()
     assert path in synced
 
@@ -324,15 +323,6 @@ def test_invalid_request_cannot_create_candidate(tmp_path, generation):
     assert snapshot(tmp_path) == before
 
 
-def test_v3_governance_cannot_delete_v4_objects(tmp_path):
-    repo = create(tmp_path)
-    publish(repo)
-    before = snapshot(tmp_path)
-    with pytest.raises(StoreCorruptionError):
-        repo.retention.collect(CollectionPolicy(("simulation",)))
-    assert snapshot(tmp_path) == before
-
-
 def test_managed_protocol_schema_and_creator_validation(tmp_path):
     import jsonschema
 
@@ -346,7 +336,7 @@ def test_managed_protocol_schema_and_creator_validation(tmp_path):
         object_record_path(tmp_path, result.declaration.files.objects[0].object_id).read_bytes()
     )
     schema = json.loads(
-        (Path(__file__).parents[1] / "src/asterstore/metadata/schemas/v4.json").read_text()
+        (Path(__file__).parents[1] / "src/asterstore/metadata/schemas/store.json").read_text()
     )
     for value, encode, decode in [
         (store, encode_store, decode_store),
@@ -377,7 +367,7 @@ def test_empty_managed_commit_and_alias_validation(tmp_path):
         empty = candidate.commit()
     assert not empty.declaration.files.objects
     assert repo.open("simulation").files() == ()
-    with repo.resume_managed("p1") as candidate:
+    with repo.resume("p1") as candidate:
         assert candidate.commit() == empty
     with prepare(repo, "p2", 1) as candidate:
         candidate.write_bytes("member", b"value", relative_path="part.bin")
@@ -394,12 +384,12 @@ def test_current_only_historical_reuse_is_not_implicitly_authorized(tmp_path):
 
     repo = create(tmp_path)
     for i in range(2):
-        with repo.prepare_managed(
+        with repo.prepare(
             "data", publication_id=f"p{i}", operation_id=f"op{i}", expected_generation=i
         ) as candidate:
             candidate.write_bytes("key", b"value", relative_path="data.bin")
             candidate.commit()
-    with repo.prepare_managed(
+    with repo.prepare(
         "data", publication_id="p2", operation_id="op2", expected_generation=2
     ) as candidate:
         with pytest.raises(HistoryUnavailableError):
@@ -412,7 +402,7 @@ def test_current_only_historical_reuse_is_not_implicitly_authorized(tmp_path):
 def test_managed_golden_records_and_rejected_mutations(name):
     import jsonschema
 
-    fixture = Path(__file__).parent / "fixtures/protocol/v4/managed" / (name + ".json")
+    fixture = Path(__file__).parent / "fixtures/protocol/managed" / (name + ".json")
     data = fixture.read_bytes()
     encode, decode = {
         "repository": (encode_store, decode_store),
@@ -421,7 +411,7 @@ def test_managed_golden_records_and_rejected_mutations(name):
         "object": (encode_object_record, decode_object_record),
     }[name]
     schema = json.loads(
-        (Path(__file__).parents[1] / "src/asterstore/metadata/schemas/v4.json").read_text()
+        (Path(__file__).parents[1] / "src/asterstore/metadata/schemas/store.json").read_text()
     )
     jsonschema.Draft202012Validator(schema).validate(json.loads(data))
     assert encode(decode(data)) == data

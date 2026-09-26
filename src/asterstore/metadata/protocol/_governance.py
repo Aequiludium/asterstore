@@ -15,7 +15,14 @@ from ._codec import (
     encode_object_record,
 )
 from ._json import array, dump, integer, load, mapping, record, text
-from ._models import DeclarationRecord, ManagedRequest, ObjectRecord, generation, identity
+from ._models import (
+    FORMAT_VERSION,
+    DeclarationRecord,
+    ManagedRequest,
+    ObjectRecord,
+    generation,
+    identity,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,7 +128,7 @@ class GovernanceProgress:
 def encode_retention(value: FixedRetention) -> bytes:
     return dump(
         {
-            "format_version": 4,
+            "format_version": FORMAT_VERSION,
             "kind": "fixed_retention",
             "store_id": value.store_id,
             "name": value.name,
@@ -159,7 +166,7 @@ def decode_retention(data: bytes) -> FixedRetention:
 def encode_retired(value: RetiredDeclaration) -> bytes:
     return dump(
         {
-            "format_version": 4,
+            "format_version": FORMAT_VERSION,
             "kind": "retired_declaration",
             "collection_id": value.collection_id,
             "publication": load(encode_declaration_record(value.publication)),
@@ -182,7 +189,7 @@ def decode_retired(data: bytes) -> RetiredDeclaration:
 def encode_governance_plan(value: GovernancePlan) -> bytes:
     return dump(
         {
-            "format_version": 4,
+            "format_version": FORMAT_VERSION,
             "kind": "governance_plan",
             "store_id": value.store_id,
             "operation_id": value.operation_id,
@@ -215,7 +222,7 @@ def decode_governance_plan(data: bytes) -> GovernancePlan:
 def encode_governance_progress(value: GovernanceProgress) -> bytes:
     return dump(
         {
-            "format_version": 4,
+            "format_version": FORMAT_VERSION,
             "kind": "governance_progress",
             "store_id": value.store_id,
             "operation_id": value.operation_id,
@@ -262,7 +269,7 @@ def decode_governance_progress(data: bytes) -> GovernanceProgress:
 def encode_managed_abandonment(request: ManagedRequest) -> bytes:
     return dump(
         {
-            "format_version": 4,
+            "format_version": FORMAT_VERSION,
             "kind": "managed_abandonment",
             "request": load(encode_managed_request(request)),
         }

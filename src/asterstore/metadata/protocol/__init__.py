@@ -1,4 +1,4 @@
-"""v4 authority records, strict codecs and explicit numeric boundaries."""
+"""authority records, strict codecs and explicit numeric boundaries."""
 
 from ._cleanup import (
     CleanupLocation,
@@ -19,7 +19,6 @@ from ._codec import (
     encode_managed_request,
     encode_object_record,
     encode_store,
-    marker_version,
 )
 from ._governance import (
     FixedRetention,
@@ -83,5 +82,4 @@ __all__ = [
     "encode_declaration_record",
     "encode_object_record",
     "encode_store",
-    "marker_version",
 ]

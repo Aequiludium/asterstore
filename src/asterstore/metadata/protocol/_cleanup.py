@@ -8,7 +8,7 @@ from asterstore.metadata.identity import validate_object_key
 
 from ._codec import decode_managed_request, encode_managed_request
 from ._json import array, dump, load, mapping, record, text
-from ._models import ManagedRequest, identity
+from ._models import FORMAT_VERSION, ManagedRequest, identity
 
 CleanupLocation = Literal["private", "installed"]
 CleanupOutcome = Literal["deleted", "missing"]
@@ -68,7 +68,7 @@ class ManagedCleanupProgress:
 def encode_managed_cleanup_plan(value: ManagedCleanupPlan) -> bytes:
     return dump(
         {
-            "format_version": 4,
+            "format_version": FORMAT_VERSION,
             "kind": "managed_cleanup_plan",
             "request": load(encode_managed_request(value.request)),
             "location": value.location,
@@ -97,7 +97,7 @@ def decode_managed_cleanup_plan(data: bytes) -> ManagedCleanupPlan:
 def encode_managed_cleanup_progress(value: ManagedCleanupProgress) -> bytes:
     return dump(
         {
-            "format_version": 4,
+            "format_version": FORMAT_VERSION,
             "kind": "managed_cleanup_progress",
             "store_id": value.store_id,
             "operation_id": value.operation_id,

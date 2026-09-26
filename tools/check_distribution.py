@@ -27,9 +27,9 @@ import asterstore
 installed = pathlib.Path(asterstore.__file__).resolve()
 assert installed.is_relative_to(pathlib.Path(sys.prefix).resolve()), installed
 assert installed.with_name('py.typed').is_file()
-schema_path = importlib.resources.files('asterstore.metadata').joinpath('schemas/v3.json')
+schema_path = importlib.resources.files('asterstore.metadata').joinpath('schemas/store.json')
 schema = json.loads(schema_path.read_text())
-assert len(schema['oneOf']) == 10
+assert len(schema['oneOf']) == 11
 assert importlib.util.find_spec('jsonschema') is None
 assert importlib.metadata.version('asterstore') == sys.argv[1]
 distribution = importlib.metadata.distribution('asterstore')
@@ -42,57 +42,23 @@ assert hashlib.sha256(distribution.locate_file(licenses[0]).read_bytes()).hexdig
 assert ('Repository, https://github.com/Aequiludium/asterstore'
         in metadata.get_all('Project-URL', []))
 packages = (
-    'metadata', 'reading', 'publishing', 'retention', 'inspection', 'storage', 'integrations'
+    'metadata', 'reading', 'publishing', 'governance', 'registration', 'storage', 'integrations'
 )
 for name in packages:
     importlib.import_module('asterstore.' + name)
 importlib.import_module('asterstore.integrations.polars')
+assert importlib.util.find_spec('asterstore.retention') is None
+assert importlib.util.find_spec('asterstore.inspection') is None
+assert importlib.util.find_spec('asterstore.publishing.managed') is None
+assert not any(hasattr(asterstore, name)
+               for name in ('Dataset', 'Publication', 'ObjectRef', 'Retention'))
+assert {p.name for p in schema_path.parent.iterdir()} == {'store.json'}
 assert importlib.util.find_spec('polars') is None
 requirements = importlib.metadata.requires('asterstore') or []
 assert requirements and all('extra ==' in item for item in requirements), requirements
 assert not any(name.split('.')[0] in {'polars', 'pyarrow', 'pandas', 'aster_protocol'}
                for name in sys.modules)
 root = pathlib.Path.cwd() / 'data-not-created'
-publication = asterstore.Publication(
-    asterstore.Dataset('prices'), 'batch:table', [asterstore.ObjectRef('part.bin')]
-)
-binding = asterstore.Repository(root).bind(publication)
-assert binding.files() == (root / 'part.bin',)
-assert not root.exists()
-repository = asterstore.Repository(pathlib.Path.cwd() / 'managed')
-with repository.prepare(asterstore.Dataset('managed'), publication_id='batch:table') as candidate:
-    candidate.write_bytes('part.bin', b'installed wheel')
-    candidate_id = candidate.candidate_id
-    candidate.commit()
-assert repository.open('managed').files()[0].read_bytes() == b'installed wheel'
-assert repository.candidate_status(candidate_id).state == 'current'
-held = repository.retention.retain('../installed:run', 'managed')
-assert held.binding.files()[0].read_bytes() == b'installed wheel'
-repository.retention.release('../installed:run', expected_revision=held.revision)
-with repository.prepare(asterstore.Dataset('managed'), publication_id='batch:second') as candidate:
-    shared = candidate.reuse('batch:table')
-    candidate.write_bytes('new.bin', b'incremental')
-    second = candidate.commit()
-assert second.objects[1:] == shared
-assert repository.open('managed').files()[1] == held.binding.files()[0]
-report = repository.retention.preview(asterstore.CollectionPolicy(('managed',)))
-assert report.status == 'complete' and not report.reclaimable_objects
-with repository.prepare(asterstore.Dataset('managed'), publication_id='p3') as candidate:
-    candidate.write_bytes('latest.bin', b'latest')
-    candidate.commit()
-result = repository.retention.collect(asterstore.CollectionPolicy(('managed',)))
-assert result.status == 'complete' and len(result.deleted_objects) == 2
-assert repository.retention.resume_collection(result.operation_id) == result
-assert repository.candidate_status(candidate_id).state == 'retired'
-assert repository.open('managed').files()[0].read_bytes() == b'latest'
-with repository.prepare(asterstore.Dataset('managed')) as candidate:
-    candidate.write_bytes('partial.bin', b'failed writer')
-    failed_candidate_id = candidate.candidate_id
-assert repository.inspection.candidates().candidates[0].state == 'writing'
-assert repository.abandon(failed_candidate_id).state == 'abandoned'
-cleaned = repository.retention.cleanup_candidate(failed_candidate_id)
-assert cleaned.status == 'complete' and len(cleaned.deleted_files) == 1
-assert repository.retention.cleanup_candidate(failed_candidate_id) == cleaned
 declaration = asterstore.Declaration(
     'simulation:temperature', 'run:17',
     asterstore.FileSet(
@@ -111,8 +77,6 @@ except asterstore.UnsupportedCapabilityError:
     pass
 else:
     raise AssertionError('external files gained object retention')
-v4_schema = importlib.resources.files('asterstore.metadata').joinpath('schemas/v4.json')
-assert len(json.loads(v4_schema.read_text())['oneOf']) == 11
 registered = asterstore.Repository(pathlib.Path.cwd() / 'registered-control')
 registered.initialize(store_id='store:installed', resource_ids=['external'])
 record = registered.register(declaration, operation_id='registration:1', expected_generation=0)
@@ -122,43 +86,43 @@ reopened_binding = reopened.open('simulation:temperature', resources={'external'
 assert reopened_binding.files() == (root / 'part.bin',)
 assert reopened.resume_registration('registration:1') == record
 assert not root.exists()
-managed_v4 = asterstore.Repository(pathlib.Path.cwd() / 'managed-v4')
-managed_v4.initialize(store_id='installed', resource_ids=['owned'],
+managed = asterstore.Repository(pathlib.Path.cwd() / 'managed')
+managed.initialize(store_id='installed', resource_ids=['owned'],
                       managed_resource_id='owned', lifecycle=True)
-with managed_v4.prepare_managed('result', publication_id='p1', operation_id='op1',
+with managed.prepare('result', publication_id='p1', operation_id='op1',
                                 expected_generation=0) as writer:
-    writer.write_bytes('logical:member', b'v4 installed', relative_path='part.bin')
+    writer.write_bytes('logical:member', b'installed bytes', relative_path='part.bin')
     writer.seal()
-with managed_v4.resume_managed('op1') as recovery:
+with managed.resume('op1') as recovery:
     recovery.commit()
-assert managed_v4.open('result').files()[0].read_bytes() == b'v4 installed'
-assert managed_v4.managed_status('op1').state == 'current'
-held_v4 = managed_v4.governance.retain(
+assert managed.open('result').files()[0].read_bytes() == b'installed bytes'
+assert managed.candidate_status('op1').state == 'current'
+held = managed.governance.retain(
     'task', 'result', 'p1', scope=asterstore.RetentionScope.OBJECTS)
-managed_v4.governance.retain('audit', 'result', 'p1', scope=asterstore.RetentionScope.METADATA)
-with managed_v4.prepare_managed('result', publication_id='p2', operation_id='op2',
+managed.governance.retain('audit', 'result', 'p1', scope=asterstore.RetentionScope.METADATA)
+with managed.prepare('result', publication_id='p2', operation_id='op2',
                                 expected_generation=1) as writer:
     writer.write_bytes('new', b'next generation', relative_path='new.bin')
     writer.commit()
-retained_v4 = managed_v4.governance.open('task', expected_revision=1)
-assert retained_v4.files()[0].read_bytes() == b'v4 installed'
-assert not managed_v4.governance.preview().reclaimable
-managed_v4.governance.release('task', expected_revision=held_v4.revision)
-collected_v4 = managed_v4.governance.collect('gc')
-assert len(collected_v4.deleted_objects) == 1
-assert managed_v4.governance.resume_collection('gc') == collected_v4
-assert managed_v4.managed_status('op1').state == 'retired'
-assert managed_v4.describe('result', publication_id='p1').declaration.publication_id == 'p1'
-with managed_v4.prepare_managed('result', publication_id='failed', operation_id='failed',
+retained = managed.governance.open('task', expected_revision=1)
+assert retained.files()[0].read_bytes() == b'installed bytes'
+assert not managed.governance.preview().reclaimable
+managed.governance.release('task', expected_revision=held.revision)
+collected = managed.governance.collect('gc')
+assert len(collected.deleted_objects) == 1
+assert managed.governance.resume_collection('gc') == collected
+assert managed.candidate_status('op1').state == 'retired'
+assert managed.describe('result', publication_id='p1').declaration.publication_id == 'p1'
+with managed.prepare('result', publication_id='failed', operation_id='failed',
                                 expected_generation=2) as writer:
     partial = writer.write_bytes('partial', b'incomplete', relative_path='partial.bin')
-managed_v4.governance.abandon('failed')
-assert managed_v4.governance.preview_cleanup('failed').files == ('partial.bin',)
-cleanup = managed_v4.governance.cleanup('failed')
+managed.governance.abandon('failed')
+assert managed.governance.preview_cleanup('failed').files == ('partial.bin',)
+cleanup = managed.governance.cleanup('failed')
 assert cleanup.complete and cleanup.deleted_files == ('partial.bin',)
-assert managed_v4.governance.resume_cleanup('failed') == cleanup
+assert managed.governance.resume_cleanup('failed') == cleanup
 assert not partial.exists()
-assert managed_v4.governance.collect('after-cleanup').complete
+assert managed.governance.collect('after-cleanup').complete
 print('Isolated installation OK:', installed)
 """
 
@@ -216,7 +180,7 @@ def main() -> None:
         ):
             parser.error("use dist/ or an output directory outside the source tree")
     before = source_digest(root)
-    run(args.python, str(root / "tools/check_contract.py"), cwd=root)
+    run(args.python, str(root / "tools/check_protocol.py"), cwd=root)
     with tempfile.TemporaryDirectory(prefix="asterstore-distribution-") as temporary:
         work = Path(temporary)
         output = work / "dist"
@@ -235,70 +199,38 @@ def main() -> None:
         with tarfile.open(sdist) as archive:
             members = {name.partition("/")[2] for name in archive.getnames()}
             required = {
-                "src/asterstore/py.typed",
-                "CONTRIBUTING.md",
-                "LICENSE",
-                "SECURITY.md",
-                "CHANGELOG.md",
-                "docs/compatibility.md",
-                "docs/releasing.md",
-                "docs/contracts/0.1.json",
-                "tools/check_contract.py",
-                "tests/test_release_contract.py",
-                "tests/test_binding.py",
-                "tests/test_declarations.py",
-                "examples/declarations.py",
-                "docs/declarations.md",
-                "src/asterstore/metadata/membership/__init__.py",
-                "src/asterstore/metadata/capabilities/__init__.py",
-                "docs/architecture.md",
+                "docs/api.md",
+                "tests/fixtures/protocol/publication.json",
+                "docs/governance.md",
                 "docs/protocol.md",
-                "docs/protocol-v3.md",
-                "docs/protocol-v4.md",
-                "examples/registration.py",
-                "src/asterstore/metadata/schemas/v4.json",
-                "tests/fixtures/protocol/v4/publication.json",
-                "tests/test_registration_processes.py",
-                "tests/test_managed_processes.py",
-                "examples/managed_declarations.py",
-                "docs/managed-v4.md",
-                "docs/governance-v4.md",
-                "docs/cleanup-v4.md",
-                "examples/cleanup_v4.py",
-                "tests/test_managed_cleanup_processes.py",
+                "tests/fixtures/protocol/cleanup/plan.json",
+                "tools/check_protocol.py",
+                "examples/cleanup.py",
+                "docs/releasing.md",
+                "docs/publishing.md",
+                "tools/check_distribution.py",
                 "tests/test_audit_regressions.py",
                 "benchmarks/managed_membership.py",
-                "docs/audit-fixes-v4.md",
-                "benchmarks/governance_scale.py",
-                "docs/release-scope.md",
-                "tests/fixtures/protocol/v4/cleanup/plan.json",
-                "tests/fixtures/protocol/v4/cleanup/progress.json",
-                "src/asterstore/retention/governance/cleanup/__init__.py",
-                "examples/governance_v4.py",
-                "tests/test_governance_processes.py",
-                "tests/fixtures/protocol/v4/governance/progress.json",
-                "tests/fixtures/protocol/v4/managed/request.json",
-                "src/asterstore/metadata/schemas/v3.json",
-                "tests/fixtures/protocol/v3/opaque-candidate.json",
-                "tests/fixtures/protocol/v3/invalid/mixed-collection.json",
-                "tests/fixtures/protocol/v1/current.json",
-                "examples/publication.py",
-                "examples/retention.py",
-                "examples/reuse.py",
-                "examples/collection.py",
-                "examples/candidate_cleanup.py",
-                "examples/parquet.py",
-                "src/asterstore/integrations/polars/__init__.py",
                 "tests/test_polars.py",
+                "tests/test_binding.py",
+                "src/asterstore/metadata/schemas/store.json",
+                "docs/compatibility.md",
+                "SECURITY.md",
+                "tests/test_governance_processes.py",
+                "CONTRIBUTING.md",
+                "examples/parquet.py",
+                "benchmarks/governance_scale.py",
+                "tests/test_supported_format.py",
+                "examples/registration.py",
+                "tests/test_managed_processes.py",
+                "LICENSE",
+                "tests/test_managed_cleanup_processes.py",
+                "src/asterstore/py.typed",
+                "tests/test_registration_processes.py",
+                "docs/cleanup.md",
+                "examples/governance.py",
+                "CHANGELOG.md",
                 "benchmarks/parquet_read.py",
-                "docs/integrations.md",
-                "tests/fixtures/protocol/v2/abandoned-candidate.json",
-                "tests/fixtures/protocol/v2/retired.json",
-                "tests/fixtures/protocol/v2/reuse-candidate.json",
-                "tests/fixtures/protocol/v2/reference.json",
-                "examples/binding.py",
-                "benchmarks/README.md",
-                "tools/check_distribution.py",
             }
             license_names = [
                 name for name in archive.getnames() if name.partition("/")[2] == "LICENSE"
@@ -367,7 +299,7 @@ def main() -> None:
                 "version": version,
                 "source_sha256": before,
                 "python": sys.version,
-                "checks": ["api_protocol_contract", "wheel_core", "sdist_rebuild_core"]
+                "checks": ["protocol_schema_and_codecs", "wheel_core", "sdist_rebuild_core"]
                 + (["wheel_polars", "sdist_rebuild_polars"] if args.polars else []),
                 "artifacts": artifacts,
                 "rebuilt_wheel_sha256": hashlib.sha256(

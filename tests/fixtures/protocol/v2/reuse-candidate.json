@@ -1,1 +1,0 @@
-{"candidate_id":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","dataset":{"dataset_id":"market/prices","physical_history":"current_only"},"expected_generation":1,"format_version":2,"keys":["new.bin"],"kind":"candidate","publication_id":"p2","reused_objects":[{"key":".asterstore/objects/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/part.bin","publication_id":"p1"}]}

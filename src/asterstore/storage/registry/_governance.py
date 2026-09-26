@@ -43,7 +43,7 @@ def retired_path(root: Path, dataset_id: str, publication_id: str) -> Path:
 
 
 def collection_directory(root: Path, operation_id: str) -> Path:
-    return root / ".asterstore/collections-v4" / token(operation_id)
+    return root / ".asterstore/collections" / token(operation_id)
 
 
 def read_retention(root: Path, store: StoreRecord, name: str) -> FixedRetention | None:

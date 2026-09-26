@@ -18,7 +18,7 @@ def setup(root):
     repo.initialize(
         store_id="store", resource_ids=["owned"], managed_resource_id="owned", lifecycle=True
     )
-    with repo.prepare_managed(
+    with repo.prepare(
         "data", publication_id="failed", operation_id="failed", expected_generation=0
     ) as writer:
         path = writer.write_bytes("k", b"partial", relative_path="data.bin")
@@ -27,7 +27,7 @@ def setup(root):
 
 
 def cleaner(root, pipe, point):
-    from asterstore.retention.governance.cleanup import _service
+    from asterstore.governance.cleanup import _service
 
     try:
         name = {
@@ -89,7 +89,7 @@ def test_sigkill_releases_both_locks_and_preserves_fixed_plan(tmp_path, point):
 def active_writer(root, pipe):
     try:
         repo = Repository(root)
-        with repo.prepare_managed(
+        with repo.prepare(
             "data", publication_id="active", operation_id="active", expected_generation=0
         ) as writer:
             writer.write_bytes("k", b"active", relative_path="data.bin")

@@ -13,7 +13,7 @@ class Declaration:
     """A publication input with explicit membership and declared capabilities.
 
     Binding it fixes identities, membership and paths, not external file bytes.
-    v4 registration persists this input; v3 publication/GC operations do not accept it.
+    Registration and managed publication persist the same declaration model.
     """
 
     dataset_id: str

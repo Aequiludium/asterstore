@@ -4,25 +4,9 @@ import stat
 from pathlib import Path
 
 from asterstore.errors import StoreCorruptionError
-from asterstore.metadata import object_creator, validate_private_key
 from asterstore.metadata.identity import validate_object_key
 
 from ._files import sync_directory
-
-
-def delete_object(root: Path, key: str) -> bool:
-    """Return True if unlinked, False if absent; sync the surviving parent entry.
-
-    Caller owns the exclusive root lock and has persisted the retirement decision.
-    Empty directories are deliberately retained. This is not an adversarial sandbox.
-    """
-    object_creator(key)
-    return _delete_regular(root, key)
-
-
-def delete_candidate_file(root: Path, candidate_id: str, key: str) -> bool:
-    validate_private_key(candidate_id, key)
-    return _delete_regular(root, key)
 
 
 def _delete_regular(root: Path, key: str) -> bool:
@@ -57,6 +41,6 @@ def _delete_regular(root: Path, key: str) -> bool:
 
 
 def delete_owned_file(root: Path, relative_path: str) -> bool:
-    """Exact v4 file deletion; caller must first prove ownership and persist retirement."""
+    """Exact file deletion; caller must first prove ownership and persist retirement."""
     validate_object_key(relative_path)
     return _delete_regular(root, relative_path)

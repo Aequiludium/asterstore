@@ -9,10 +9,6 @@ class InvalidDeclarationError(AsterStoreError, ValueError):
     """A supplied declaration is structurally invalid."""
 
 
-class UnknownObjectError(AsterStoreError, KeyError):
-    """A requested object does not belong to the bound publication."""
-
-
 class StoreCorruptionError(AsterStoreError):
     """Persistent metadata is invalid or inconsistent."""
 
@@ -41,10 +37,6 @@ class UnsupportedPlatformError(AsterStoreError):
     """The required local filesystem coordination is unavailable."""
 
 
-class RepositoryUpgradeRequiredError(AsterStoreError):
-    """Governance writes require v3; existing v1/v2 repositories are read-only."""
-
-
 class ReferenceConflictError(AsterStoreError):
     """The named reference revision or create request does not match."""
 
@@ -56,19 +48,19 @@ class ReferenceNotFoundError(AsterStoreError, KeyError):
 class PublicationRetiredError(AsterStoreError):
     """An identity was committed and irreversibly retired; it cannot be reopened."""
 
-    def __init__(self, dataset_id: str, publication_id: str, candidate_id: str) -> None:
+    def __init__(self, dataset_id: str, publication_id: str, operation_id: str) -> None:
         self.dataset_id = dataset_id
         self.publication_id = publication_id
-        self.candidate_id = candidate_id
-        super().__init__(f"publication is retired: {dataset_id}/{publication_id} ({candidate_id})")
+        self.operation_id = operation_id
+        super().__init__(f"publication is retired: {dataset_id}/{publication_id} ({operation_id})")
 
 
 class CandidateAbandonedError(CandidateStateError):
     """The candidate was permanently abandoned and cannot resume or commit."""
 
-    def __init__(self, candidate_id: str) -> None:
-        self.candidate_id = candidate_id
-        super().__init__(f"candidate is abandoned: {candidate_id}")
+    def __init__(self, operation_id: str) -> None:
+        self.operation_id = operation_id
+        super().__init__(f"candidate is abandoned: {operation_id}")
 
 
 class UnsupportedCapabilityError(AsterStoreError, ValueError):

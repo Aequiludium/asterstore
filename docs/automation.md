@@ -2,7 +2,7 @@
 
 ## CI 与合并门槛
 
-[CI](../.github/workflows/ci.yml) 在 main 推送、PR 和手动触发时运行。质量/契约、Python 3.11/3.12 测试和双版本隔离发行验证分别执行；统一的 `CI gate` 只有在全部任务成功时才通过，失败、取消或意外跳过均不能获得成功门槛。
+[CI](../.github/workflows/ci.yml) 在 main 推送、PR 和手动触发时运行。质量/协议、Python 3.11/3.12 测试和双版本隔离发行验证分别执行；统一的 `CI gate` 只有在全部任务成功时才通过，失败、取消或意外跳过均不能获得成功门槛。
 
 普通工作流只有 contents:read，checkout 不保留凭据；官方 Actions 固定到完整提交 SHA。每个任务设置超时，同一分支/PR 的旧 CI 可被取消。测试报告保留 14 天，验证过的 wheel/sdist/verification.json 保留 30 天；制品名字包含解释器版本和提交身份。这些是验证产物，不会自动上传 PyPI 或创建正式 Release。
 

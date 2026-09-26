@@ -1,94 +1,114 @@
-# 受管仓库协议 v1（开发草案）
+# 磁盘格式与声明登记
 
-此文保留旧 v1 写入实现的格式及流程说明。**当前新仓库使用 [v3 协议](protocol-v3.md)，现有 v1/v2 仓库只读兼容，不能继续 prepare/resume 或使用 retention 服务，也不会自动升级。** 下文的写入步骤用于解释既有状态，并非当前库仍接受 v1 写入。当前退役与回收语义见 [保留设计](retention.md)。
+当前唯一仓库格式为 `kind: "store"`、`format_version: 1`，所有控制记录均使用版本 1。仅支持这一格式，不提供开发旧格式兼容。当前模型同时支持外部登记、受管发布和显式治理；详见[发布](publishing.md)、[治理](governance.md)和[清理](cleanup.md)。
 
-## 布局与身份
+## 入口与边界
+
+```python
+from asterstore import (
+    Capabilities,
+    Declaration,
+    FileSet,
+    Locator,
+    Member,
+    Object,
+    Repository,
+)
+
+repo = Repository("./control")
+repo.initialize(store_id="simulation:store", resource_ids=["simulator"])
+declaration = Declaration(
+    "simulation:heat",
+    "run:17",
+    FileSet(
+        [Object("object:17", Locator("simulator", "output.bin"))],
+        [Member("phase:initial", "object:17")],
+    ),
+    Capabilities.registered(),
+)
+record = repo.register(declaration, operation_id="import:17", expected_generation=0)
+binding = Repository("./control").open(
+    "simulation:heat",
+    resources={"simulator": "/data/simulation"},
+)
+paths = binding.files(keys=["phase:initial"])
+```
+
+`initialize` 显式创建仓库。store_id 可省略，由库生成；已有仓库省略时使用原身份。需要跨初始化失败精确重试或同时初始化的调用者应提前固定 store_id。同一 store_id 和资源集合可重试，修改身份或资源集合会冲突；不自动升级其他格式。
+
+`register` 必须提供 operation_id 和 expected_generation。初始 generation 为 0；返回 DeclarationRecord 的 generation 为 expected_generation + 1。普通构造 Repository 和内存 bind 仍然没有 I/O。
+
+默认 registered-only marker 只接受 registered 声明；显式开启 managed 的仓库还接受库内候选发布。register 入口始终只接受 registered 声明。登记不扫描、复制、读取、同步或删除外部文件，也不执行 pickle 或其他业务解码器。资源根是打开时的显式部署参数；它可以位于只读挂载，登记操作甚至不需要资源根。`resources={}` 可打开空声明。
+
+## 权威记录与路径
 
 ```text
-<root>/.asterstore/
-├── format.json
-├── .init.lock
-├── gc.lock
-├── locks/candidates/<candidate_id>.lock
-├── candidates/<candidate_id>/
-│   ├── state.json
-│   └── files/<logical_key>          # 安装后整个 files 目录被移动
-├── objects/<candidate_id>/<logical_key>
-└── datasets/<sha256(dataset_id)>/
-    ├── commit.lock
-    ├── current.json                # 完整的当前发布记录
-    └── history/<sha256(publication_id)>.json
+control/.asterstore/
+  format.json                                  # StoreRecord，固定 Store 身份和资源命名空间
+  gc.lock                                      # 本轮注册提交的协调锁
+  registrations/<operation-token>.json         # 不可变操作请求，尚不代表提交
+  object-records/<object-token>.json            # Store 范围内不可变的对象身份关联
+  datasets/<dataset-token>/
+    current.json                               # 完整 DeclarationRecord，原子可见点
+    history/<publication-token>.json           # 从已生效 current 归档的完整记录
 ```
 
-ID 的 SHA-256 只用于生成稳定、安全的目录名，不读取数据内容。候选 ID 为 UUID 的 32 位小写十六进制形式。发布 ID 默认自动生成，也可由调用者提供；在同一数据集内不允许由不同候选复用。对象键是仓库根目录相对路径。
+所有 token 使用对应原始 UTF-8 身份的 SHA-256 十六进制字符串。ID 不拼进目录；读回核对身份、Store 和资源归属。对象 ID 在 Store 内唯一；发布 ID 在数据集内唯一；操作 ID 在 Store 内唯一。
 
-初始化是显式写入流程的一部分。仓库格式标记缺失时，库不会接管包含未知文件的 `.asterstore` 目录。原子写入留下的格式标记临时文件允许重试；无法解析的已有标记不会被覆盖。仓库根下的其他应用目录不属于控制目录。
+StoreRecord 保存 store_id、resource_ids，以及 `required_features=["registered"]`。资源列表按精确字符串排序编码；不保存数据根绝对路径，不把机器部署路径当作资源身份。目前没有修改资源命名空间或接管管理权的接口。
 
-锁文件永久保留，不能在使用中替换或删除，否则进程可能锁住不同 inode。此约定也约束后续 GC 实现。当前没有 GC 或残留清理 API，不应自行删除候选状态或历史记录。
+DeclarationRecord 保存 store_id、operation_id、expected_generation、generation 和完整 Declaration：能力、对象表、逻辑成员映射。它既是固定操作请求的内容，也是提交后 current/history 的内容；**记录位于操作目录只表示请求已经固定，不表示发布已经生效。**
 
-## 控制记录
+ObjectRecord 保存 Store 内 object_id → locator、registered 管理方式与外部字节稳定性。该关联在任何提交之前固定；后续发布甚至另一数据集都不能把相同 object_id 指向不同 locator 或改写其字节稳定性。多个发布可以显式引用相同对象。该身份约束不冻结外部字节、不产生删除权。不同发布可为同一外部位置声明不同对象 ID，库不跨发布按路径或内容自动去重。
 
-所有记录采用 UTF-8 JSON，包含 `format_version: 1` 和明确的 `kind`。编码排序字段、紧凑输出并追加换行；解码拒绝重复键、非有限数、未知版本、缺失或额外字段、不合法身份和布尔类型 generation。当前格式不接受任意扩展字段。
+操作中断后可能留下尚未公开的操作和对象身份记录。它们是保守的永久身份预留，当前没有自动清理或重用接口；不能把它们当作可删除数据的证据。
 
-仓库标记：
+## 提交、重试和恢复
 
-```json
-{"format_version":1,"kind":"repository"}
-```
+提交过程只持有短期控制元数据锁，不包含数据生产阶段：
 
-候选记录包含：`candidate_id`、`dataset`、`publication_id`、`expected_generation` 和 `keys`。`dataset` 包含 `dataset_id` 与 `physical_history`。`keys: null` 表示尚未封存，数组表示封存后的逻辑文件集合，允许空数组。
+1. 在任何治理写入前验证声明类型、registered 能力、整数范围和资源引用，核对 marker。
+2. 取得仓库 `gc.lock` 独占锁，重读 Store；检查操作、发布与对象身份冲突。
+3. 已提交的相同操作返回原记录，不重新选择 current。否则检查 expected_generation 与数据集能力不变。
+4. 强持久路径先同步已有 marker 和复用对象的控制记录，再持久化不可变操作请求及新增对象记录。
+5. 将旧 current 归档到 history；原子替换完整新 current。
+6. 完成当前请求所承诺的同步后返回。任何外部数据文件都不参与本流程。
 
-发布记录包含：`generation`、`candidate_id` 和 `publication`。`publication` 包含 `dataset`、`publication_id` 与 `objects`；每个对象只有 `key`，并必须属于该候选的 `.asterstore/objects/<candidate_id>/` 命名空间。
+**current 的原子替换是唯一可见生效点。** 归档可能早于新 current，因此 history 中允许存在与旧 current 相同的副本。没有 current 却出现历史，或历史 generation 不低于 current，视为损坏，不据此重建 current。首次 current 写入留下的空目录，在 generation=0 固定请求解释且没有历史/未知条目时属于未提交残留，不等于丢失已提交历史。
 
-机器可读样例位于 [candidate.json](../tests/fixtures/protocol/v1/candidate.json) 与 [current.json](../tests/fixtures/protocol/v1/current.json)，由编解码测试核对。没有 pickle，也没有 Aster 业务模型。
+不同请求从同一 generation 竞争，只有一个生效；同一请求并发重试可共同返回同一结果。操作 ID 携带不同内容、发布 ID 被不同请求复用、对象 ID 被重新定位、数据集能力被改变，都会报 `PublicationConflictError`。
 
-## 生效点与提交顺序
+`registration_status(operation_id)` 返回 planned / committed / conflict，是协调锁下的控制状态观察，不是数据健康检查。操作请求尚未落盘时，该身份查询报不存在；调用者可重发原始 register 请求。请求落盘后可调用 `resume_registration(operation_id)`；恢复沿用原始 generation，不自动变基。
 
-1. 进入准备上下文，读取当前 generation；无发布时为 0。创建候选状态和暂存目录。
-2. 生产者完成声明的文件并关闭写入器。封存检查普通文件类型，固定成员，按配置同步文件和目录，再原子写入封存状态。
-3. 获取数据集提交锁。首先识别该候选是否已提交；否则校验基准 generation、发布 ID 和数据集能力。
-4. 将候选的整个文件目录重命名到其独立对象目录；同步相关目录（默认开启）。
-5. 若已有 current，将这个**曾经生效的完整记录**写入不可覆盖的历史档案；已有档案必须完全一致。
-6. 原子替换包含完整新发布的 `current.json`，generation 增加 1；同步后返回。
+提交后的响应丢失不等于失败未执行。若较新发布已经生效，对旧操作重试会返回历史结果，绝不回退 current。已提交记录缺少操作或对象身份依据时，重试明确报损坏，不偷偷重建丢失证据。
 
-**current 的原子替换是发布可见性的生效点。** 普通读者看到完整旧记录或完整新记录。它不需要跨多个控制文件拼出一次提交，也不需要追溯全仓日志。暂存候选即使已经封存，也不能按发布 ID 打开。
+当前注册提交在仓库级串行协调，优先保证对象 ID 的跨数据集唯一关联；它不是最终吞吐优化结果。同步和控制记录数随声明对象数量增长，尚未取得大规模运维性能结论。
 
-历史只归档已经成为过 current 的记录，因此可以用来确认旧候选是否成功提交。切换新 current 前归档旧 current，即使新提交失败，也只会多出当前记录的相同档案，不会暴露未提交发布。
+## 读取与保证
 
-候选状态文件保留原始 generation 和成员，current 或历史记录提供已提交证据。重试验证两者一致，返回原发布；已经成为历史的候选不会再次切换 current。无需引入另一个必须和 current 原子更新的完成标记。
+- `describe(dataset_id, publication_id=...)` 返回已提交 DeclarationRecord；可以读取 current_only 数据集的历史声明。
+- `open(dataset_id, resources=...)` 返回新的 Binding；current 路径只读 marker 与 current 两份控制记录。
+- `open(..., publication_id=...)` 尊重 HistoryAccess。CURRENT_ONLY 不允许打开非当前数据；VERSIONED 允许历史声明绑定，但不保证外部旧字节仍存在。
+- 普通 open 不查询全仓对象注册表、不扫描历史、不逐文件验证。跨记录身份约束在登记和显式运维边界承担；控制记录损坏的全面检查不属于普通读取职责。
+- Binding 捕获资源映射；重新绑定资源不改变已有 Binding。不同应用必须为同一资源提供符合其部署契约的根目录，库不通过内容探测证明这些映射相同。
+- `durable=True` 同步本次依赖的控制记录及目录；`False` 省略显式同步，仍有原子可见性与竞争检测。两者都不提升外部字节持久性。
 
-## 历史能力与当前限制
+## 结构与拒绝边界
 
-`current_only` 与 `versioned` 均使用独立候选路径完成发布；前者不承诺历史重开，后者允许按 ID 查询仍在仓库中的历史。历史元数据也服务于冲突和幂等重试，不应把档案存在等同于数据保留承诺。
+逻辑 ID 为 1–4096 UTF-8 字节，无 Cc 控制字符；generation/revision 使用 `0..2^63-1` 整数，拒绝布尔和浮点。expected_generation 最大为 `2^63-2`，耗尽后拒绝写入。
 
-当前每次发布描述一整批新文件，尚无继承、共享对象、外部可变目录登记或规则分区定位。显式成员数组的读取成本随清单大小增长。文件原生编码由应用决定，核心不验证 CSV、Parquet 或业务 schema。
+[Schema](../src/asterstore/metadata/schemas/store.json) 和 [golden fixtures](../tests/fixtures/protocol/) 随 wheel/sdist 发布。UTF-8 JSON 严格拒绝重复键、NaN/Infinity、错误类型、未知字段、未知 kind、混合版本和未知 required_features。Schema 负责结构；codec 另外检查 UTF-8 字节长度、成员闭包、路径冲突和 generation 的关系。
 
-尚无具名持久引用、保留策略或 GC。因此字节、历史、候选和锁记录都会积累。这一阶段用于验证发布协议；长期容量治理仍依赖后续实现。未来 GC 必须同时定义已回收发布与旧候选的重试语义，不能直接移除当前幂等证明后允许旧 ID 再提交。
+marker 的 required_features 是必要语义门槛。managed 和 lifecycle 是同一格式内必须显式启用的能力。当前编解码器支持 registered 基础组合及 managed、lifecycle 必要功能的四个固定组合，见 [治理](governance.md)。含 managed 的组合必须包含 managed_resource_id。解码器拒绝不认识的组合。
 
-## 协调与故障
+## 验收与剩余工作
 
-候选准备和恢复全过程持有仓库 GC 共享锁，再持有候选独占锁；提交时进一步持有数据集独占锁。状态查询持有仓库共享锁和数据集锁，读取原子候选状态。普通读者不获取这些锁。GC 未来需获取仓库独占锁，故长时间准备会延迟回收。
+[登记测试](../tests/test_registration.py)覆盖权威记录、身份冲突、响应丢失、固定请求重试和每个持久边界的异常；[进程测试](../tests/test_registration_processes.py)覆盖竞争提交、相同请求并发重试，以及对象身份落盘后/current 生效后的进程终止恢复。[独立示例](../examples/registration.py)在另一个 Python 进程重新打开声明。
 
-不同候选可同时准备数据，只有提交阶段按数据集串行。相同基准的竞争者只有一个提交成功，另一个明确冲突。锁由 POSIX `flock` 实现，进程退出后释放；锁文件本身仍保留。
+这些是本地 POSIX 进程与故障注入证据，不证明断电或 NFS 服务故障保证。目标数据不需存在或可写；原生引擎仍负责实际读取时的文件错误。
 
-| 观察到的状态 | 处理 |
-| --- | --- |
-| 未封存 | 不发布，不恢复提交；重新生产数据，残留等待后续运维功能 |
-| 已封存，未安装 | 恢复时检查声明文件，再按原基准提交 |
-| 已安装，current 未切换 | 仍是未提交候选，恢复沿用对象目录，不重复复制 |
-| current 已切换，但响应或同步失败 | 状态可能已是 current；重试原候选并重新完成同步 |
-| 候选已经成为历史 | 幂等返回原发布，不回退 current |
-| 基准已经过期 | 返回冲突，不自动改基准或合并数据 |
-| 控制记录损坏或不一致 | 报错，不据此猜测并改写 current |
+managed 候选与创建权属已接入同一声明模型，见 [managed](publishing.md)。直接保留及 GC 已接入，见 [治理](governance.md)；仅凭 Capabilities 不能取得保留或删除权限。
 
-`durable=True` 是默认值：在关键写入处同步文件及父目录。`durable=False` 跳过显式同步，但仍使用相同协调和原子替换。可见不等于已完成持久化；替换后的 fsync 失败会报错，却不能撤销读者已经看到的发布。
+## 失败候选清理记录
 
-恢复使用新上下文，重新检查封存文件是否存在且为普通文件；这项检查只发生在写入恢复边界。持久恢复还会重新同步数据、恢复记录、仓库标记和目录可达链。它不会验证文件内容是否被外部修改。
-
-保证依赖合作生产者、同一文件系统内的原子重命名及平台的同步语义；不防御恶意符号链接替换或绕过协议的修改。使用 `copy_file()` 可将跨文件系统输入复制到本仓库暂存。当前本地多进程竞争、进程终止及注入异常测试不等于断电验证，也不代表 NFS 多客户端或服务器故障已经验证。
-
-## 读取成本
-
-`Repository.open(dataset_id)` 只读格式标记和一个 current 记录，检查控制结构并建立内存绑定。指定历史发布时按 ID 定位档案，不枚举历史。已经绑定的 `files()` 不再访问控制文件，也不逐个探测数据文件。
-
-这一实现承担的是绑定时与发布边界的治理成本，不增加每次原生数据读取的审计。显式审计后续归入 `inspection`，不进入普通路径定位。
+lifecycle 仓库支持 `managed_cleanup_plan` 和 `managed_cleanup_progress`，两者与永久放弃的 managed_request 关联。它们属于候选创建者的控制目录；逐文件的清理不删除身份记录，也不复用操作 ID。字段、授权与开发版本兼容性见 [清理](cleanup.md)。普通读取不加载这些记录。

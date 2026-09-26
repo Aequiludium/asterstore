@@ -12,8 +12,6 @@ import pytest
 from asterstore import (
     ByteStability,
     Capabilities,
-    CollectionPolicy,
-    Dataset,
     Declaration,
     FileSet,
     HistoryAccess,
@@ -97,15 +95,6 @@ def test_initialize_is_idempotent_and_does_not_adopt_existing_protocols(tmp_path
     with pytest.raises(PublicationConflictError):
         repo.initialize(resource_ids=["different"])
     assert snapshot(repo.root) == before
-    old = Repository(tmp_path / "old")
-    with old.prepare(Dataset("old"), durable=False):
-        pass
-    before = snapshot(old.root)
-    with pytest.raises(UnsupportedCapabilityError):
-        old.initialize(store_id="s", resource_ids=["external"])
-    with pytest.raises(UnsupportedCapabilityError):
-        old.register(declaration(), operation_id="op", expected_generation=0)
-    assert snapshot(old.root) == before
 
 
 def test_history_discovery_and_idempotency_do_not_reset_current(tmp_path):
@@ -273,24 +262,6 @@ def test_data_is_never_probed_and_ordinary_open_reads_two_controls(tmp_path, mon
         assert binding.files(keys=["phase:initial"]) == (external / "part.bin",)
     assert reads == [marker_path(root), head_path(root, "simulation")]
     assert not external.exists()
-
-
-def test_legacy_governance_cannot_mutate_v4_or_external_files(tmp_path):
-    repo = create(tmp_path)
-    repo.register(declaration(), operation_id="op", expected_generation=0)
-    before = snapshot(tmp_path)
-    with pytest.raises(StoreCorruptionError):
-        with repo.prepare(Dataset("data")):
-            pass
-    for action in (
-        lambda: repo.retention.retain("run", "simulation"),
-        lambda: repo.retention.collect(CollectionPolicy(("simulation",))),
-        lambda: repo.retention.preview(CollectionPolicy(("simulation",))),
-        lambda: repo.retention.cleanup_candidate("a" * 32),
-    ):
-        with pytest.raises(StoreCorruptionError):
-            action()
-    assert snapshot(tmp_path) == before
 
 
 def test_new_record_validation_precedes_any_governance_write(tmp_path):

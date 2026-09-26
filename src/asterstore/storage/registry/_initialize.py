@@ -1,4 +1,4 @@
-"""Explicit v4 initialization; never reinterpret an existing repository."""
+"""Explicit initialization; never reinterpret an existing repository."""
 
 from pathlib import Path
 
