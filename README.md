@@ -89,9 +89,7 @@ print(binding.files(keys=["readings"])[0].read_text())
 ```python
 from asterstore import RetentionScope
 
-held = store.governance.retain(
-    "analysis", "measurements", "run:1", scope=RetentionScope.OBJECTS
-)
+held = store.governance.retain("analysis", "measurements", "run:1", scope=RetentionScope.OBJECTS)
 try:
     inputs = store.governance.open("analysis", expected_revision=held.revision)
     print(inputs.files()[0].read_text())
