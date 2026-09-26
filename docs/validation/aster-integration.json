@@ -1,0 +1,31 @@
+{
+  "checked_at": "2026-09-26T10:14:02.632125+00:00",
+  "python": "3.12.12",
+  "asterstore": "0.1.0.dev1",
+  "polars": "1.44.2",
+  "dataset_id": "md.stock.kline_minute",
+  "source_publication_id": "20260915T094516-migration-918317ef:md.stock.kline_minute",
+  "days": [
+    "2026-09-11",
+    "2026-09-14"
+  ],
+  "source_sha256": {
+    "2026-09-11": "0ef814c066ef13f7af385dea37a0ee1d394849530195654fe215e71737030518",
+    "2026-09-14": "a7f1ea0204e5fb0e3c9d3bb33a83e126e2abae35c55574d44457c118b89662e0"
+  },
+  "rows_checked": 2505120,
+  "vwap_rows": 10414,
+  "checks": [
+    "Aster VWAP equality",
+    "explicit schema/key check",
+    "incremental object reuse",
+    "same-date rewrite",
+    "retained lazy query across GC",
+    "release and collection",
+    "sealed recovery",
+    "generation conflict",
+    "abandoned candidate cleanup",
+    "source hashes unchanged"
+  ],
+  "limits": "Two-day local managed copy. No production cutover or shared-mount write qualification."
+}

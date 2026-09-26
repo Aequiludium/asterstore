@@ -1,0 +1,63 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Upload the verified distributions to PyPI (false rehearses the full pipeline)
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  artifacts:
+    name: Select and verify release artifacts
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
+        with:
+          name: verified-distributions-python-3.12-${{ github.sha }}
+          path: verified
+      - name: Verify filenames, version and hashes before selecting upload files
+        run: python tools/select_release_artifacts.py verified upload
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pypi-distributions-${{ github.sha }}
+          path: upload/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Upload to PyPI
+    if: inputs.publish
+    needs: artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/p/asterstore
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
+        with:
+          name: pypi-distributions-${{ github.sha }}
+          path: dist
+      - name: Publish the same distributions that passed isolated installation checks
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
