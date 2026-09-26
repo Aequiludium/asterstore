@@ -1,4 +1,4 @@
-"""v4 control paths and reads. Object data is never opened here."""
+"""control paths and reads. Object data is never opened here."""
 
 from hashlib import sha256
 from pathlib import Path
@@ -6,9 +6,7 @@ from pathlib import Path
 from asterstore.errors import (
     RepositoryNotInitializedError,
     StoreCorruptionError,
-    UnsupportedCapabilityError,
 )
-from asterstore.metadata import decode_repository
 from asterstore.metadata.identity import MAX_IDENTIFIER_BYTES, validate_identifier
 from asterstore.metadata.protocol import (
     DeclarationRecord,
@@ -17,7 +15,6 @@ from asterstore.metadata.protocol import (
     decode_declaration_record,
     decode_object_record,
     decode_store,
-    marker_version,
 )
 
 
@@ -46,19 +43,12 @@ def object_record_path(root: Path, object_id: str) -> Path:
     return root / ".asterstore/object-records" / (token(object_id) + ".json")
 
 
-def read_repository_metadata(root: Path) -> StoreRecord | int:
+def read_store(root: Path) -> StoreRecord:
     try:
         data = marker_path(root).read_bytes()
     except FileNotFoundError as exc:
         raise RepositoryNotInitializedError(f"repository is not initialized: {root}") from exc
-    return decode_store(data) if marker_version(data) == 4 else decode_repository(data)
-
-
-def read_store(root: Path) -> StoreRecord:
-    store = read_repository_metadata(root)
-    if not isinstance(store, StoreRecord):
-        raise UnsupportedCapabilityError("new declarations require a v4 store; no implicit upgrade")
-    return store
+    return decode_store(data)
 
 
 def check_record(value: DeclarationRecord, store: StoreRecord) -> DeclarationRecord:

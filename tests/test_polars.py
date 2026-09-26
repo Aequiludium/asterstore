@@ -5,25 +5,57 @@ import os
 
 import pytest
 
-from asterstore import CollectionPolicy, Dataset, ObjectRef, Publication, Repository
+from asterstore import (
+    Capabilities,
+    Declaration,
+    FileSet,
+    Locator,
+    Member,
+    Object,
+    Repository,
+    RetentionScope,
+)
 from asterstore.integrations.polars import scan_parquet
 
 pl = pytest.importorskip("polars")
 
 
+def declaration(dataset, paths):
+    return Declaration(
+        dataset,
+        "p1",
+        FileSet(
+            [Object(str(i), Locator("data", path)) for i, path in enumerate(paths)],
+            [Member(path, str(i)) for i, path in enumerate(paths)],
+        ),
+        Capabilities.registered(),
+    )
+
+
+def initialize(repo):
+    repo.initialize(resource_ids=["data"], managed_resource_id="data", lifecycle=True)
+
+
 def test_exact_paths_and_hive_opt_in(tmp_path):
     repository = Repository(tmp_path)
-    with repository.prepare(Dataset("data"), durable=False) as candidate:
-        pl.DataFrame({"value": [1]}).write_parquet(candidate.path("day=01/part[1].parquet"))
-        pl.DataFrame({"value": [2]}).write_parquet(candidate.path("day=02/part[1].parquet"))
+    initialize(repository)
+    with repository.prepare(
+        "data", publication_id="p1", operation_id="p1", expected_generation=0, durable=False
+    ) as candidate:
+        pl.DataFrame({"value": [1]}).write_parquet(
+            candidate.path("first", relative_path="day=01/part[1].parquet")
+        )
+        pl.DataFrame({"value": [2]}).write_parquet(
+            candidate.path("second", relative_path="day=02/part[1].parquet")
+        )
         publication = candidate.commit()
-    binding = repository.bind(publication)
+    binding = repository.open("data")
     # A glob interpretation would select this extra, undeclared file instead.
     pl.DataFrame({"value": [999]}).write_parquet(binding.files()[0].with_name("part1.parquet"))
     result = scan_parquet(binding).sort("value").collect()
     assert result.columns == ["value"]
     assert result["value"].to_list() == [1, 2]
-    key = publication.objects[1].key
+    key = publication.declaration.files.members[1].key
     assert scan_parquet(binding, keys=[key]).collect()["value"].to_list() == [2]
     assert scan_parquet(binding, keys=[key, key]).collect()["value"].to_list() == [2, 2]
     assert scan_parquet(binding, hive_partitioning=True).sort("day").collect()["day"].to_list() == [
@@ -34,29 +66,35 @@ def test_exact_paths_and_hive_opt_in(tmp_path):
 
 def test_retained_lazy_query_and_incremental_collection(tmp_path):
     producer = Repository(tmp_path)
-    dataset = Dataset("data")
-    with producer.prepare(dataset, publication_id="p1", durable=False) as candidate:
+    initialize(producer)
+    dataset = "data"
+    with producer.prepare(
+        dataset, publication_id="p1", operation_id="p1", expected_generation=0, durable=False
+    ) as candidate:
         for day, price in [(1, 10), (2, 20)]:
             pl.DataFrame({"day": [day], "price": [price]}).write_parquet(
-                candidate.path(f"day={day}/data.parquet")
+                candidate.path(str(day), relative_path=f"day={day}/data.parquet")
             )
         first = candidate.commit()
     consumer = Repository(tmp_path)
-    held = consumer.retention.retain("run", "data", durable=False)
-    old_query = scan_parquet(held.binding).select(pl.col("price").sum())
-    with producer.prepare(dataset, publication_id="p2", durable=False) as candidate:
-        candidate.reuse(keys=[first.objects[0].key])
+    held = consumer.governance.retain("run", "data", "p1", scope=RetentionScope.OBJECTS)
+    old_query = scan_parquet(
+        consumer.governance.open("run", expected_revision=held.revision)
+    ).select(pl.col("price").sum())
+    with producer.prepare(
+        dataset, publication_id="p2", operation_id="p2", expected_generation=1, durable=False
+    ) as candidate:
+        candidate.reuse(keys=[first.declaration.files.members[0].key])
         pl.DataFrame({"day": [2], "price": [21]}).write_parquet(
-            candidate.path("day=2/data.parquet")
+            candidate.path("2", relative_path="day=2/data.parquet")
         )
         candidate.commit()
     current = consumer.open("data")
-    policy = CollectionPolicy(("data",))
-    assert producer.retention.collect(policy).deleted_objects == ()
+    assert producer.governance.collect("protected").deleted_objects == ()
     assert old_query.collect().item() == 30
     assert scan_parquet(current).select(pl.col("price").sum()).collect().item() == 31
-    consumer.retention.release("run", expected_revision=held.revision)
-    assert producer.retention.collect(policy).deleted_objects == first.objects[1:]
+    consumer.governance.release("run", expected_revision=held.revision)
+    assert len(producer.governance.collect("released").deleted_objects) == 1
     assert scan_parquet(current).select(pl.col("price").sum()).collect().item() == 31
     # Neither a Binding nor a prebuilt LazyFrame silently pins or refreshes files.
     with pytest.raises(FileNotFoundError):
@@ -65,7 +103,7 @@ def test_retained_lazy_query_and_incremental_collection(tmp_path):
 
 def test_adapter_adds_no_io_or_retention(tmp_path, monkeypatch):
     binding = Repository(tmp_path / "absent").bind(
-        Publication(Dataset("data"), "p1", [ObjectRef("missing[1].parquet")])
+        declaration("data", ["missing[1].parquet"]), resources={"data": tmp_path / "absent"}
     )
     sentinel = object()
     calls = []
@@ -94,14 +132,14 @@ def test_adapter_adds_no_io_or_retention(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("keys", [None, []])
 def test_empty_selection_does_not_invent_schema(tmp_path, keys):
-    binding = Repository(tmp_path).bind(Publication(Dataset("empty"), "p1", []))
+    binding = Repository(tmp_path).bind(declaration("empty", []), resources={})
     with pytest.raises(ValueError, match="empty selection"):
         scan_parquet(binding, keys=keys)
 
 
 def test_missing_file_is_engine_error(tmp_path):
     binding = Repository(tmp_path).bind(
-        Publication(Dataset("missing"), "p1", [ObjectRef("absent.parquet")])
+        declaration("missing", ["absent.parquet"]), resources={"data": tmp_path}
     )
     with pytest.raises(FileNotFoundError):
         scan_parquet(binding).collect()

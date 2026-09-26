@@ -1,7 +1,9 @@
-"""Strict JSON primitives shared only within the v4 codec."""
+"""Strict JSON primitives shared only within the codec."""
 
 import json
 from typing import cast
+
+from ._models import FORMAT_VERSION
 
 
 def pairs(items: list[tuple[str, object]]) -> dict[str, object]:
@@ -59,6 +61,6 @@ def array(value: object) -> list[object]:
 
 def record(data: bytes, kind: str, fields: set[str]) -> dict[str, object]:
     value = mapping(load(data), fields | {"format_version", "kind"})
-    if integer(value["format_version"]) != 4 or value["kind"] != kind:
-        raise ValueError("unsupported v4 record version or kind")
+    if integer(value["format_version"]) != FORMAT_VERSION or value["kind"] != kind:
+        raise ValueError("unsupported record version or kind")
     return value

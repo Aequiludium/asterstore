@@ -1,1 +1,0 @@
-{"format_version": 4, "kind": "repository", "required_features": ["registered", "arbitrary"], "resource_ids": ["external:results"], "store_id": "store:simulation"}

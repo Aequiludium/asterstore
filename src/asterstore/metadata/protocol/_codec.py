@@ -1,4 +1,4 @@
-"""Language-independent v4 wire representation; never decode application payloads."""
+"""Language-independent wire representation; never decode application payloads."""
 
 from asterstore.errors import StoreCorruptionError
 from asterstore.metadata.capabilities import ByteStability, Capabilities, HistoryAccess, Management
@@ -9,17 +9,10 @@ from ._json import array, dump, integer, load, mapping, record, text
 from ._models import FORMAT_VERSION, DeclarationRecord, ManagedRequest, ObjectRecord, StoreRecord
 
 
-def marker_version(data: bytes) -> int:
-    try:
-        return integer(load(data).get("format_version"))
-    except (ValueError, TypeError, KeyError) as exc:
-        raise StoreCorruptionError(f"invalid repository marker: {exc}") from exc
-
-
 def encode_store(value: StoreRecord) -> bytes:
     payload: dict[str, object] = {
         "format_version": FORMAT_VERSION,
-        "kind": "repository",
+        "kind": "store",
         "store_id": value.store_id,
         "resource_ids": value.resource_ids,
         "required_features": ["registered"],
@@ -52,7 +45,7 @@ def decode_store(data: bytes) -> StoreRecord:
         fields = {"store_id", "resource_ids", "required_features"}
         if managed:
             fields.add("managed_resource_id")
-        value = record(data, "repository", fields)
+        value = record(data, "store", fields)
         return StoreRecord(
             text(value["store_id"]),
             tuple(text(x) for x in array(value["resource_ids"])),
@@ -60,7 +53,7 @@ def decode_store(data: bytes) -> StoreRecord:
             "lifecycle" in features,
         )
     except (ValueError, TypeError, KeyError) as exc:
-        raise StoreCorruptionError(f"invalid v4 store: {exc}") from exc
+        raise StoreCorruptionError(f"invalid store: {exc}") from exc
 
 
 def locator_payload(value: Locator) -> dict[str, object]:
@@ -146,7 +139,7 @@ def decode_declaration_record(data: bytes) -> DeclarationRecord:
             raise ValueError("generation does not follow expected_generation")
         return result
     except (ValueError, TypeError, KeyError) as exc:
-        raise StoreCorruptionError(f"invalid v4 publication: {exc}") from exc
+        raise StoreCorruptionError(f"invalid publication: {exc}") from exc
 
 
 def encode_object_record(value: ObjectRecord) -> bytes:
@@ -182,7 +175,7 @@ def decode_object_record(data: bytes) -> ObjectRecord:
             raise ValueError("inconsistent object management")
         return result
     except (ValueError, TypeError, KeyError) as exc:
-        raise StoreCorruptionError(f"invalid v4 object: {exc}") from exc
+        raise StoreCorruptionError(f"invalid object: {exc}") from exc
 
 
 def encode_managed_request(value: ManagedRequest) -> bytes:
@@ -223,4 +216,4 @@ def decode_managed_request(data: bytes) -> ManagedRequest:
             HistoryAccess(text(value["history"])),
         )
     except (ValueError, TypeError, KeyError) as exc:
-        raise StoreCorruptionError(f"invalid v4 managed request: {exc}") from exc
+        raise StoreCorruptionError(f"invalid managed request: {exc}") from exc

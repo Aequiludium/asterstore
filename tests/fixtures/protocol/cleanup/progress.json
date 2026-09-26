@@ -1,0 +1,1 @@
+{"complete":true,"format_version":1,"kind":"managed_cleanup_progress","operation_id":"candidate:failed","outcomes":[{"path":"part.bin","status":"deleted"},{"path":"partial/native.tmp","status":"missing"}],"store_id":"store:cleanup"}

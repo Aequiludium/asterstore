@@ -1,4 +1,4 @@
-"""Measure v4 candidate membership construction separately from data production/commit."""
+"""Measure candidate membership construction separately from data production/commit."""
 
 import argparse
 import hashlib
@@ -24,7 +24,7 @@ def measure(count: int) -> dict[str, object]:
             scans.append(len(value.objects))
             original(value)
 
-        with repo.prepare_managed(
+        with repo.prepare(
             "data",
             publication_id="candidate",
             operation_id="candidate",
@@ -63,8 +63,8 @@ def main() -> None:
         parser.error("member counts must be positive")
     root = Path(__file__).resolve().parents[1]
     sources = [
-        "src/asterstore/publishing/managed/_candidate.py",
-        "src/asterstore/publishing/managed/_membership.py",
+        "src/asterstore/publishing/_candidate.py",
+        "src/asterstore/publishing/_membership.py",
         "src/asterstore/metadata/membership/_models.py",
     ]
     report = {

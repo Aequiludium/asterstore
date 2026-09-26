@@ -24,7 +24,7 @@ def setup(root):
 
 
 def publish(repo, pid, generation):
-    with repo.prepare_managed(
+    with repo.prepare(
         "data",
         publication_id=pid,
         operation_id=pid,
@@ -36,7 +36,7 @@ def publish(repo, pid, generation):
 
 
 def collector(root, pipe, point):
-    from asterstore.retention.governance import _collection
+    from asterstore.governance import _collection
 
     repo = Repository(root)
     try:
@@ -91,7 +91,7 @@ def test_process_kill_releases_gc_lock_and_resumes_exact_plan(tmp_path, point):
 def pending_writer(root, pipe):
     try:
         repo = Repository(root)
-        with repo.prepare_managed(
+        with repo.prepare(
             "data",
             publication_id="pending",
             operation_id="pending",

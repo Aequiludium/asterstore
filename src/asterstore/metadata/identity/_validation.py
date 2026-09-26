@@ -25,8 +25,9 @@ def validate_identifier(value: str, field: str, *, max_bytes: int | None = None)
         raise InvalidDeclarationError(f"{field} must not contain control characters")
 
 
-def validate_legacy_name(value: str, field: str) -> None:
-    """Preserve the v1/v2 name language; never reinterpret old records as v3."""
+def validate_object_key(value: str) -> None:
+    """Validate a canonical relative physical locator."""
+    field = "object key"
     if (
         not isinstance(value, str)
         or not value
@@ -40,16 +41,3 @@ def validate_legacy_name(value: str, field: str) -> None:
         value.encode("utf-8")
     except UnicodeEncodeError as exc:
         raise InvalidDeclarationError(f"{field} must be valid UTF-8") from exc
-
-
-def validate_object_key(value: str) -> None:
-    """Keep physical locators canonical even when logical identifiers are opaque."""
-    validate_legacy_name(value, "object key")
-
-
-def validate_record_identifiers(format_version: int, **identifiers: str) -> None:
-    for field, value in identifiers.items():
-        if format_version in (1, 2):
-            validate_legacy_name(value, field)
-        else:
-            validate_identifier(value, field, max_bytes=MAX_IDENTIFIER_BYTES)

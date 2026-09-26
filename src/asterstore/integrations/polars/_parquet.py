@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from asterstore.metadata import Declaration, Publication
 from asterstore.reading import Binding
 
 if TYPE_CHECKING:
@@ -13,7 +12,7 @@ if TYPE_CHECKING:
 
 
 def scan_parquet(
-    binding: Binding[Publication | Declaration],
+    binding: Binding,
     *,
     keys: Sequence[str] | None = None,
     hive_partitioning: bool = False,

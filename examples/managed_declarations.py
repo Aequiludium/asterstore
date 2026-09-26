@@ -12,7 +12,7 @@ def main() -> None:
         repo.initialize(
             store_id="simulation", resource_ids=["results"], managed_resource_id="results"
         )
-        with repo.prepare_managed(
+        with repo.prepare(
             "heat",
             publication_id="run:1",
             operation_id="produce:1",
@@ -22,7 +22,7 @@ def main() -> None:
             writer.write_bytes("initial", b"initial temperature", relative_path="initial.bin")
             writer.commit()
         initial = repo.open("heat").files()[0]
-        with repo.prepare_managed(
+        with repo.prepare(
             "heat",
             publication_id="run:2",
             operation_id="produce:2",
@@ -32,8 +32,8 @@ def main() -> None:
             writer.reuse("run:1", keys=["initial"])
             writer.write_bytes("final", b"final temperature", relative_path="final.bin")
             writer.seal()
-        assert repo.managed_status("produce:2").state == "prepared"
-        with Repository(repo.root).resume_managed("produce:2") as recovery:
+        assert repo.candidate_status("produce:2").state == "prepared"
+        with Repository(repo.root).resume("produce:2") as recovery:
             recovery.commit()
         result = repo.open("heat")
         assert result.files(keys=["initial"]) == (initial,)

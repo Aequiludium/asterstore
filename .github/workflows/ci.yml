@@ -18,7 +18,7 @@ env:
 
 jobs:
   quality:
-    name: Quality and contract
+    name: Quality and protocol
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -34,7 +34,7 @@ jobs:
       - run: uv run --locked --extra polars ruff check .
       - run: uv run --locked --extra polars ruff format --check .
       - run: uv run --locked --extra polars mypy
-      - run: uv run --locked --extra polars python tools/check_contract.py
+      - run: uv run --locked --extra polars python tools/check_protocol.py
 
   tests:
     name: Tests (Python ${{ matrix.python }})

@@ -14,12 +14,12 @@ def importable_workers(monkeypatch):
 
 
 def writer(root, pipe, op, stop=None):
-    from asterstore.publishing.managed import _candidate
+    from asterstore.publishing import _candidate
     from asterstore.publishing.transactions import _commit
 
     try:
         repo = Repository(root)
-        with repo.prepare_managed(
+        with repo.prepare(
             "data", publication_id=op, operation_id=op, expected_generation=0
         ) as candidate:
             candidate.write_bytes("member", op.encode(), relative_path="part.bin")
@@ -78,8 +78,10 @@ def test_killed_writer_resumes_without_reproducing_bytes(tmp_path, point):
         process.kill()
         process.join(15)
         assert process.exitcode is not None
-        assert repo.managed_status("op").state == ("current" if point == "current" else "prepared")
-        with repo.resume_managed("op") as candidate:
+        assert repo.candidate_status("op").state == (
+            "current" if point == "current" else "prepared"
+        )
+        with repo.resume("op") as candidate:
             record = candidate.commit()
         assert record.generation == 1
         assert repo.open("data").files()[0].read_bytes() == b"op"

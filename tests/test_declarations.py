@@ -1,4 +1,4 @@
-"""The new storage model is independent of v3 records and application formats."""
+"""The new storage model is independent of application formats."""
 
 from dataclasses import FrozenInstanceError
 from itertools import product

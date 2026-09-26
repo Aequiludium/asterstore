@@ -26,7 +26,6 @@ from ._records import (
     read_head,
     read_object_record,
     read_operation,
-    read_repository_metadata,
     read_store,
     token,
 )
@@ -59,6 +58,5 @@ __all__ = [
     "read_head",
     "read_object_record",
     "read_operation",
-    "read_repository_metadata",
     "read_store",
 ]

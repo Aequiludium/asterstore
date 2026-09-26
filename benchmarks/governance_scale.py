@@ -1,4 +1,4 @@
-"""Measure v4 control costs with independently varied history, datasets, refs and GC logs."""
+"""Measure control costs with independently varied history, datasets, refs and GC logs."""
 
 from __future__ import annotations
 
@@ -21,9 +21,9 @@ from typing import TypeVar
 from unittest.mock import patch
 
 from asterstore import HistoryAccess, Repository, RetentionScope
+from asterstore.governance import _collection
+from asterstore.governance._inventory import Inventory, inventory
 from asterstore.metadata.protocol import StoreRecord
-from asterstore.retention.governance import _collection
-from asterstore.retention.governance._inventory import Inventory, inventory
 from asterstore.storage import delete_owned_file, sync_control_files
 
 T = TypeVar("T")
@@ -202,7 +202,7 @@ def measure(case: Case, parent: Path | None, repeats: int, durable: bool) -> dic
         )
         for dataset in range(case.datasets):
             for generation in range(case.publications_per_dataset):
-                with repo.prepare_managed(
+                with repo.prepare(
                     f"data:{dataset}",
                     publication_id=f"p:{generation}",
                     operation_id=f"write:{dataset}:{generation}",
@@ -322,7 +322,7 @@ def main() -> None:
         "governance_durable": True,
         "repeats_read_operations": args.repeats,
         "repeats_mutations": 1,
-        "scope": "v4 explicit members, one new 128-byte object per publication; no reuse or deps",
+        "scope": "explicit members, one new 128-byte object per publication; no reuse or deps",
         "caveats": (
             "Warm uncontrolled OS cache and host load; no device identification or RSS. "
             "Read wall samples and tracemalloc peaks run separately from probes. "

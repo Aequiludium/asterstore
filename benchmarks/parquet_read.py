@@ -17,7 +17,7 @@ from typing import Any
 
 import polars as pl
 
-from asterstore import Binding, Dataset, Publication, Repository
+from asterstore import Binding, Repository
 from asterstore.integrations.polars import scan_parquet
 
 
@@ -42,7 +42,7 @@ def query(scan: pl.LazyFrame) -> pl.DataFrame:
     return scan.filter(pl.col("row") % 2 == 0).select(pl.col("value").sum()).collect()
 
 
-def compare(binding: Binding[Publication], keys: list[str] | None, repeats: int) -> dict[str, Any]:
+def compare(binding: Binding, keys: list[str] | None, repeats: int) -> dict[str, Any]:
     paths = binding.files(keys=keys)
 
     def direct() -> pl.DataFrame:
@@ -74,12 +74,18 @@ def compare(binding: Binding[Publication], keys: list[str] | None, repeats: int)
 
 def measure(root: Path, files: int, args: argparse.Namespace) -> dict[str, Any]:
     repository = Repository(root)
-    dataset = Dataset("numbers")
+    repository.initialize(resource_ids=["data"], managed_resource_id="data")
+    dataset = "numbers"
     frame = pl.DataFrame({"row": range(args.rows), "value": range(args.rows)})
-    with repository.prepare(dataset, publication_id="p1", durable=args.durable) as candidate:
+    with repository.prepare(
+        dataset, publication_id="p1", operation_id="p1", expected_generation=0, durable=args.durable
+    ) as candidate:
         start = time.perf_counter_ns()
         for index in range(files):
-            frame.write_parquet(candidate.path(f"part-{index:06d}.parquet"), compression="zstd")
+            frame.write_parquet(
+                candidate.path(str(index), relative_path=f"part-{index:06d}.parquet"),
+                compression="zstd",
+            )
         write_ms = (time.perf_counter_ns() - start) / 1_000_000
         commit_ms = elapsed(candidate.commit)
     binding = repository.open("numbers")
@@ -88,9 +94,8 @@ def measure(root: Path, files: int, args: argparse.Namespace) -> dict[str, Any]:
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     assert allocation_probe.publication == binding.publication
-    assert isinstance(binding.publication, Publication)
-    one = [binding.publication.objects[0].key]
-    subset = [obj.key for obj in binding.publication.objects[: max(1, files // 4)]]
+    one = [binding.publication.files.members[0].key]
+    subset = [obj.key for obj in binding.publication.files.members[: max(1, files // 4)]]
     return {
         "files": files,
         "rows_per_file": args.rows,
@@ -110,7 +115,7 @@ def measure(root: Path, files: int, args: argparse.Namespace) -> dict[str, Any]:
             for label, keys in [("all_cached", None), ("one", one), ("quarter", subset)]
         },
         "queries": {
-            label: compare(repository.bind(binding.publication), keys, args.repeats)
+            label: compare(binding, keys, args.repeats)
             for label, keys in [("all", None), ("one", one), ("quarter", subset)]
         },
     }
