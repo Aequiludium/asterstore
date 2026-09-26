@@ -97,6 +97,7 @@ paths = binding.files()  # 直接交给读取引擎；不逐文件预检
 - [场景推演](docs/retention-scenarios.md)：共享对象、引用竞争、回收中断与验收规格。
 - [实施路线与验收](docs/roadmap.md)：阶段交付物、需要验证的行为和暂缓事项。
 - [兼容与冻结决议](docs/compatibility.md)：0.1 系列 API、旧接口和磁盘格式边界。
+- [仓库自动化](docs/automation.md)：CI 分层、依赖 Bot、安全扫描与合并门槛。
 - [候选与正式发行流程](docs/releasing.md)：制品保存、校验和发布步骤。
 - [首版范围与冻结检查](docs/release-scope.md)：v4 推荐入口、旧协议兼容、已有证据与发行缺项。
 - [开源实现学习记录](docs/research.md)：源码证据、适合吸收的机制及其限制。

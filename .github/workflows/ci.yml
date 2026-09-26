@@ -2,44 +2,124 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  POLARS_MAX_THREADS: "4"
+
 jobs:
-  check:
+  quality:
+    name: Quality and contract
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12"]
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: "0.10.7"
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
           enable-cache: true
       - run: uv sync --locked --extra polars
       - run: uv run --locked --extra polars ruff check .
       - run: uv run --locked --extra polars ruff format --check .
       - run: uv run --locked --extra polars mypy
       - run: uv run --locked --extra polars python tools/check_contract.py
-      - run: uv run --locked --extra polars pytest
-      - run: uv run --locked --extra polars python examples/binding.py
-      - run: uv run --locked --extra polars python examples/declarations.py
-      - run: uv run --locked --extra polars python examples/registration.py
-      - run: uv run --locked --extra polars python examples/managed_declarations.py
-      - run: uv run --locked --extra polars python examples/governance_v4.py
-      - run: uv run --locked --extra polars python examples/cleanup_v4.py
-      - run: uv run --locked --extra polars python examples/publication.py
-      - run: uv run --locked --extra polars python examples/retention.py
-      - run: uv run --locked --extra polars python examples/reuse.py
-      - run: uv run --locked --extra polars python examples/collection.py
-      - run: uv run --locked --extra polars python examples/candidate_cleanup.py
-      - run: uv run --locked --extra polars python examples/parquet.py
-      - run: uv run --locked --extra polars python benchmarks/parquet_read.py --files 1 4 --rows 16 --repeats 2 --selections 10
-      - run: uv run --locked python benchmarks/managed_membership.py --members 128 1024
-      - run: uv run --locked python benchmarks/governance_scale.py --history 1 3 --datasets 2 --references 0 2 --logs 0 2 --repeats 1
-      - run: uv run --locked --extra polars python tools/check_distribution.py --polars
+
+  tests:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    env:
+      UV_PYTHON: ${{ matrix.python }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.10.7"
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+      - run: uv sync --locked --extra polars
+      - run: uv run --locked --extra polars pytest --junitxml=dist/test-results.xml
+      - name: Independent examples
+        run: |
+          for example in examples/*.py; do
+            uv run --locked --extra polars python "$example"
+          done
+      - name: Scale smoke checks
+        run: |
+          uv run --locked --extra polars python benchmarks/parquet_read.py --files 1 4 --rows 16 --repeats 2 --selections 10
+          uv run --locked --extra polars python benchmarks/managed_membership.py --members 128 1024
+          uv run --locked --extra polars python benchmarks/governance_scale.py --history 1 3 --datasets 2 --references 0 2 --logs 0 2 --repeats 1
+      - name: Save test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tests-python-${{ matrix.python }}
+          path: dist/test-results.xml
+          retention-days: 14
+          if-no-files-found: warn
+
+  distribution:
+    name: Distribution (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    env:
+      UV_PYTHON: ${{ matrix.python }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.10.7"
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+      - run: uv sync --locked --extra polars
+      - run: uv run --locked --extra polars python tools/check_distribution.py --polars --output-dir dist/verified
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verified-distributions-python-${{ matrix.python }}-${{ github.sha }}
+          path: dist/verified/
+          retention-days: 30
+          if-no-files-found: error
+
+  required:
+    name: CI gate
+    if: always()
+    needs: [quality, tests, distribution]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require all jobs to succeed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PY'
+          import json, os
+          results = json.loads(os.environ["RESULTS"])
+          failed = {name: job["result"] for name, job in results.items() if job["result"] != "success"}
+          if failed:
+              raise SystemExit(f"Required jobs did not succeed: {failed}")
+          print("All required jobs passed")
+          PY

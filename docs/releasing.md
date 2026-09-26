@@ -6,7 +6,7 @@
 
 维护组织为 [Aequiludium](https://github.com/Aequiludium)。普通问题/设计在 [Issues](https://github.com/Aequiludium/asterstore/issues) 讨论，贡献流程见 [CONTRIBUTING](../CONTRIBUTING.md)，漏洞按 [SECURITY](../SECURITY.md) 私密报告；若私密入口不可用，仅在公开 issue 请求私密联系，不披露细节。没有承诺响应时限。
 
-0.1 系列按 [兼容决议](compatibility.md) 维护；安全和正确性修复优先进入当前维护分支。正式发布前由维护者检查远程权限、私密报告入口和 CI 状态。当前公开推送仍需先完成明确的范围授权，不因有本地候选而自动上传。
+0.1 系列按 [兼容决议](compatibility.md) 维护；安全和正确性修复优先进入当前维护分支。正式发布前由维护者检查远程权限、私密报告入口和 CI 状态。源码公开推送已获维护者授权；正式包上传仍按下面步骤单独处理。仓库级 CI/Bot/合并设置见[自动化说明](automation.md)。
 
 ## 2. 本地候选检查
 
