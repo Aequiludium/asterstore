@@ -1,6 +1,6 @@
 [project]
 name = "asterstore"
-version = "0.1.0.dev1"
+version = "0.1.0"
 description = "Local file-based data lifecycle management"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -20,6 +20,6 @@ main 采用 PR 合并、要求分支同步且 `CI gate` 通过、解决讨论、
 
 仓库只允许 squash 合并并自动清理已合并分支；默认工作流令牌只读，不允许工作流批准 PR。代码变更由维护者评审，正式发布仍按[发行流程](releasing.md)选择版本、来源和已经验证的制品。
 
-本阶段不配置 PyPI 凭据，也不启用无人值守上传。手动运行 CI 可以生成候选制品；需要上传时再明确配置发布身份、环境保护和目标包索引。仓库 Git 操作使用维护者已配置的 SSH 授权，避免依赖缺少 workflow scope 的 HTTPS OAuth 令牌。
+独立 [Publish](../.github/workflows/publish.yml) 只支持 main 上的手动触发，默认演练。完整复用 CI 后，验证并选择同次运行的制品；只有显式 publish=true 的上传任务获得 id-token:write，并使用 pypi environment 的 Trusted Publisher。PyPI 账号侧配置见[发行流程](releasing.md)。普通 CI 不获得上传权限。仓库 Git 操作使用维护者已配置的 SSH 授权。
 
 参考：[uv 的 Dependabot 接入](https://docs.astral.sh/uv/guides/integration/dependabot/)、[GitHub ruleset 规则](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets)。

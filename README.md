@@ -119,7 +119,7 @@ uv run --locked --extra polars python examples/parquet.py
 
 ## 项目状态
 
-目前处于 **`0.1.0.dev1` 开发阶段**，尚未发布稳定版。首版冻结前，先完成真实应用的完整生命周期接入。
+**`0.1.0` 首版发布准备中**。已完成 Aster 真实分钟行情的本地受管接入，验证发布、增量复用、读取、保留与回收；详见[接入验收](docs/aster-integration.md)。PyPI 上传完成前，请继续使用源码。
 
 当前验证范围为本地 Linux/POSIX；NFS 等共享挂载需要单独验证。核心以单个数据集发布为提交单位，控制历史尚未压缩。支持范围与后续工作见[首版范围](docs/release-scope.md)、[路线图](docs/roadmap.md)及[开发格式边界](docs/compatibility.md)。
 

@@ -1,13 +1,15 @@
 # Changelog
 
-## 0.1.0.dev1 — 开发中，尚未发布
+## 0.1.0 — 待发布
 
-- 删除早期开发协议的读写兼容、双生命周期实现、旧导出与 API 别名。
-- 统一 Declaration / FileSet、Candidate 与 Governance；使用 prepare/resume/candidate_status。
-- 唯一仓库标记为 kind=store、format_version=1；拒绝旧开发目录，不自动迁移或接管。
-- 撤回本地 rc1 的过早冻结；删除历史 API 签名快照，改为验证当前 Schema/codec 和生命周期行为。
-- 保留轻量 Binding、registered/managed 权属区分、原子发布、增量复用、固定保留、可恢复回收与候选清理。
-- 将引擎、示例、并发恢复、权属和读取成本测试统一到当前模型。
-- 保留 uv 构建、Apache-2.0、Python 3.11/3.12 CI、CodeQL 与 Dependabot。
+首个公开版本，使用唯一的 `store` 格式（format_version=1）。
 
-首版冻结前先完成真实应用接入。尚未取得 NFS/真实断电资格；控制历史会积累；依赖图、元数据压缩和完整审计尚未实现。
+- Declaration / FileSet 描述精确成员；Binding 在内存中选取路径，无逐读扫描、stat 或 hash。
+- 区分 registered 外部登记与 managed 受管写入，外部数据不获得隐式删除权。
+- Candidate 提供原生写入路径、增量复用、原子提交、代际冲突和固定请求恢复。
+- Governance 提供 metadata/objects 具名保留、条件释放、固定计划回收及失败候选清理。
+- 可选 Polars 接口；核心无第三方运行依赖。uv 构建，Apache-2.0，Python 3.11/3.12。
+- Aster 真实分钟行情接入已通过：2,505,120 行数据、10,414 条 VWAP 结果一致，验证完整本地生命周期。
+- 手动发布流程复用完整 CI，只上传已验证的同一批 wheel/sdist，使用 PyPI Trusted Publishing。
+
+支持本地 Linux/POSIX。不承诺 NFS 写入、真实断电资格、全历史规模、发布依赖图、元数据压缩和完整审计。
