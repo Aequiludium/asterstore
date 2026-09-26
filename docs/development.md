@@ -43,7 +43,7 @@ uv run --locked --extra polars python tools/check_distribution.py --polars
 
 第一条命令输出到 `dist/`。第二条使用临时目录构建 wheel 与 sdist，从 sdist 再构建 wheel，并分别在独立虚拟环境中安装和检查公开 API、类型标记及无引擎依赖的绑定、持久发布、重新打开、引用、复用、预览、实际回收、候选残留治理及完成重试流程。每个安装先在没有引擎的环境验证核心和适配器导入，再由 `--polars` 安装 wheel 的真实 extra 并执行 Parquet 示例。不传 `--polars` 时仅验证零引擎环境。安装检查在源码目录之外运行，并使用 Python isolated 模式。
 
-该脚本不上传发行包。当前 CI 配置只执行检查，不包含发布步骤。项目采用 Apache-2.0；发行检查同时验证许可证正文、包元数据与项目链接。正式发行仍需完成 API/协议冻结和版本选择。
+该脚本不上传发行包。当前 CI 配置只执行检查，不包含发布步骤。项目采用 Apache-2.0；发行检查同时验证许可证正文、包元数据与项目链接。首版已建立 API/协议冻结基线；正式发行仍需候选验收与最终版本选择。
 
 ## 子包协作约定
 
@@ -74,3 +74,7 @@ uv run --locked python benchmarks/governance_scale.py --history 1 3 --datasets 2
 ```
 
 CI 使用上述小规模组合验证测量脚本及保护/回收断言；不以墙钟耗时设置性能门槛。完整测量方式与局限见 [benchmarks](../benchmarks/README.md)。首版公开入口、协议兼容和发行缺项见[首版范围](release-scope.md)。
+
+## 冻结与候选制品
+
+运行 `uv run --locked --extra polars python tools/check_contract.py` 检查公共接口与格式证据。发行检查加 `--output-dir dist/0.1.0rc1` 可保留通过验证的制品和摘要；已有目录拒绝覆盖。详见[兼容决议](compatibility.md)与[发行流程](releasing.md)。

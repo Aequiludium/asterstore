@@ -1,8 +1,14 @@
 # Changelog
 
-## Unreleased — 0.1.0.dev0
+## 0.1.0rc1 — 本地候选，尚未发布
 
-首个开发快照；尚无正式发行或 API/协议兼容冻结承诺。
+首个有限功能候选；API/协议冻结边界见 [兼容决议](docs/compatibility.md)，未上传包索引。
+
+### Release preparation
+
+- 冻结 0.1 公共 API 和协议证据，CI 拒绝未经评审的签名/格式差异。
+- 保留 0.1 系列中的 v3 兼容入口，新应用推荐 v4。
+- 发行工具可保存验证过的 wheel/sdist 与 SHA-256 清单。
 
 ### Added
 

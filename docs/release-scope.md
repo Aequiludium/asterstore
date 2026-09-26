@@ -1,6 +1,6 @@
 # 首版本地发行范围与冻结检查
 
-状态：2026-09-26，包版本 `0.1.0.dev0`。本文整理首版候选范围和当前证据，**不是 API 或协议已冻结、版本已发布的声明**。完整目标规范见 [spec](spec/README.md)，阶段记录见 [roadmap](roadmap.md)。
+状态：2026-09-26，包版本 `0.1.0rc1`。本文列出已冻结的首版有限范围和证据；[兼容决议](compatibility.md) 与机器基线已落地，候选尚未发布。完整目标规范见 [spec](spec/README.md)，阶段记录见 [roadmap](roadmap.md)。
 
 ## 1. 首版交付边界
 
@@ -30,7 +30,7 @@
 - 生命周期：`Repository.governance` 的 retain/get/release/open、preview、collect/resume_collection、abandon、preview_cleanup/cleanup/resume_cleanup。
 - 可选引擎：`asterstore.integrations.polars.scan_parquet`；原生引擎自行打开 Binding 提供的路径。
 
-当前顶层同时导出旧 `Dataset/Publication/ObjectRef/Candidate/Retention`。它们属于 v3 流程，不能与 v4 声明自动互换。`Repository.prepare/resume/retention/inspection` 仍是旧流程入口，不是 v4 接口的别名。`Repository.open` 因兼容旧协议而保留联合返回类型。此次整理不删除旧导出；冻结前需要明确其稳定性与后续弃用策略。
+当前顶层同时导出旧 `Dataset/Publication/ObjectRef/Candidate/Retention`。它们属于 v3 流程，不能与 v4 声明自动互换。`Repository.prepare/resume/retention/inspection` 仍是旧流程入口，不是 v4 接口的别名。`Repository.open` 因兼容旧协议而保留联合返回类型。0.1 系列保留这些旧导出与语义，未来弃用必须提前说明和提供迁移路径；详见[兼容决议](compatibility.md)。
 
 | 仓库格式 | 普通读取 | 发布/治理 | 升级 |
 | --- | --- | --- | --- |
@@ -39,7 +39,7 @@
 | v4 registered | Declaration 绑定，打开时捕获资源根 | register；启用 lifecycle 后可直接保留元数据 | 必要功能组合显式初始化 |
 | v4 managed | Declaration 绑定，受管根由库固定 | prepare_managed；启用 lifecycle 后保留/回收/候选清理 | 不靠修改 marker 接管旧数据 |
 
-磁盘协议版本、必要功能组合和 Python 包版本是不同维度。相同数字 v4 不表示任意开发快照彼此兼容；例如候选清理增加了必须被治理识别的记录。现阶段保留隔离实验数据，不宣称开发快照间无迁移升级。冻结时需同时固定 Schema、codec、功能组合与恢复状态机。
+磁盘协议版本、必要功能组合和 Python 包版本是不同维度。相同数字 v4 不表示任意开发快照彼此兼容；例如候选清理增加了必须被治理识别的记录。不追溯承诺旧 dev0 快照间兼容。rc1 起的冻结覆盖 Schema、codec 语义、功能组合与恢复状态机；机器检查和现有故障测试共同维护该边界。
 
 ## 3. 已有验收证据
 
@@ -55,11 +55,10 @@
 
 审计修复后的 Python 3.11/3.12 全量测试各 535 项通过。测试数量包含旧协议回归，不等于规范 A-01 至 A-28 全部验收。共享挂载与未交付功能的场景仍未通过。
 
-## 4. 发布前剩余事项
+## 4. 冻结结果与发行缺项
 
-1. **API/格式冻结评审。** 确定上述有限范围为首版契约，核对公开错误、返回类型、旧接口稳定性、开发格式兼容边界；不能仅凭测试全绿就宣布冻结。
-2. **控制历史成本决策。** 使用规模曲线评估目标部署；当前保留永久身份、候选和回收证据，GC 与完成重试遍历全仓控制记录。首版可公开此限制；尚无基于实际部署负载的容量上限或压缩能力。
-3. **开源与发布材料。** 已补齐远程项目链接、维护者组织、贡献指南、安全报告说明与 CHANGELOG。Apache-2.0 及 LICENSE 已确定并纳入制品检查；最终版本号仍待冻结评审后选择。
-4. **发行验证与实际发布。** 冻结后重跑锁定环境测试、规模 smoke、wheel/sdist 隔离检查，保存最终制品摘要；然后建立发布来源、标签和上传流程。源码远程为 [Aequiludium/asterstore](https://github.com/Aequiludium/asterstore)，默认分支 main。CI 只有检查任务；GitHub Actions 的实际结果以对应提交的运行记录为准，源码推送不等于包索引发布。
+API/协议冻结已按[兼容决议](compatibility.md)落地：v4 为推荐入口，0.1 系列保留 v3；固定公开签名、字段、错误与枚举，冻结必要功能组合和格式证据。CI 与发行检查都运行差异门槛，正常检查不自动改写基线。控制历史成本作为首版明确限制接受，不在首版承诺压缩或恒定治理成本。
 
-当前能力足以进入有限范围的本地试用准备，但距离公开首版仍有上述收口工作。无需为了首版补齐全部远期目标，也不把未完成目标从规范中删除。
+Apache-2.0、维护者组织、贡献/安全报告说明、CHANGELOG、项目链接及本地候选版本 `0.1.0rc1` 已完成。发行工具可导出验证过的 wheel/sdist 和摘要；具体操作见[发行流程](releasing.md)。
+
+正式发行剩余：明确授权的源码公开推送、最终提交的远程 CI、候选验收后版本选择、包索引发布身份/权限配置及实际上传验证。当前没有宣布 GitHub 或 PyPI 发行成功。共享挂载资格和完整远期规范不属于这个有限本地版本的已交付保证。

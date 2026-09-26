@@ -60,6 +60,6 @@ result = repository.governance.resume_cleanup("failed-operation")
 
 新增 `managed_cleanup_plan`、`managed_cleanup_progress` 两种严格 v4 JSON 记录，纳入打包 Schema 和 golden fixtures。plan 内嵌完整原请求、location 及不重复且无文件祖先冲突的路径清单；progress 身份与路径集合必须匹配计划，complete 必须覆盖整个计划。
 
-仍使用既有 `lifecycle` 必要功能，不自动升级现有仓库。尚不认识这些新记录的上一开发实现会因未知候选控制文件而拒绝治理扫描；它不会跳过新证据继续 GC。原有 `abandoned.json` 已阻止旧生命周期写入者恢复提交。v3 的候选清理接口和记录独立保留；本轮不修改其含义。开发协议和 API 尚未冻结。
+仍使用既有 `lifecycle` 必要功能，不自动升级现有仓库。尚不认识这些新记录的上一开发实现会因未知候选控制文件而拒绝治理扫描；它不会跳过新证据继续 GC。原有 `abandoned.json` 已阻止旧生命周期写入者恢复提交。v3 的候选清理接口和记录独立保留；本轮不修改其含义。该格式的首版兼容范围见 [0.1 冻结决议](compatibility.md)。
 
 本地测试覆盖异常注入、SIGKILL 后恢复、清理竞争及等待写入者时的锁顺序；这不是 NFS、多主机协调或真实断电测试。协作式文件管理不防护绕过库协议的并发写入或遗留可写句柄。

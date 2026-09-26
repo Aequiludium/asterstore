@@ -25,6 +25,7 @@ jobs:
       - run: uv run --locked --extra polars ruff check .
       - run: uv run --locked --extra polars ruff format --check .
       - run: uv run --locked --extra polars mypy
+      - run: uv run --locked --extra polars python tools/check_contract.py
       - run: uv run --locked --extra polars pytest
       - run: uv run --locked --extra polars python examples/binding.py
       - run: uv run --locked --extra polars python examples/declarations.py

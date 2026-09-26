@@ -1,0 +1,1944 @@
+{
+  "api": {
+    "AsterStoreError": {
+      "bases": [
+        "Exception"
+      ]
+    },
+    "Binding": {
+      "bases": [
+        "Generic"
+      ],
+      "constructor": [
+        "(root: pathlib.Path, publication: +DeclarationT, *, resources: collections.abc.Mapping[str, str | pathlib.Path] | None = None) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "root",
+          "type": "<class 'pathlib.Path'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "publication",
+          "type": "+DeclarationT"
+        },
+        {
+          "init": true,
+          "kw_only": true,
+          "name": "resources",
+          "type": "collections.abc.Mapping[str, str | pathlib.Path] | None"
+        }
+      ],
+      "frozen": true,
+      "methods": {
+        "capabilities": {
+          "get": [
+            "(self) -> asterstore.metadata.capabilities._models.Capabilities | None"
+          ],
+          "kind": "property",
+          "set": null
+        },
+        "files": {
+          "kind": "function",
+          "signatures": [
+            "(self, *, keys: collections.abc.Sequence[str] | None = None) -> tuple[pathlib.Path, ...]"
+          ]
+        }
+      }
+    },
+    "ByteStability": {
+      "enum": {
+        "COORDINATED_IMMUTABLE": "coordinated_immutable",
+        "MUTABLE_OR_UNKNOWN": "mutable_or_unknown",
+        "PRODUCER_IMMUTABLE": "producer_immutable"
+      }
+    },
+    "Candidate": {
+      "bases": [
+        "object"
+      ],
+      "construction": "repository factory",
+      "methods": {
+        "__enter__": {
+          "kind": "function",
+          "signatures": [
+            "(self) -> 'Candidate'"
+          ]
+        },
+        "__exit__": {
+          "kind": "function",
+          "signatures": [
+            "(self, exc_type: type[BaseException] | None, exc: BaseException | None, traceback: traceback | None) -> None"
+          ]
+        },
+        "candidate_id": {
+          "get": [
+            "(self) -> str"
+          ],
+          "kind": "property",
+          "set": null
+        },
+        "commit": {
+          "kind": "function",
+          "signatures": [
+            "(self) -> asterstore.metadata._models.Publication"
+          ]
+        },
+        "copy_file": {
+          "kind": "function",
+          "signatures": [
+            "(self, key: str, source: str | pathlib.Path) -> pathlib.Path"
+          ]
+        },
+        "expected_generation": {
+          "get": [
+            "(self) -> int"
+          ],
+          "kind": "property",
+          "set": null
+        },
+        "path": {
+          "kind": "function",
+          "signatures": [
+            "(self, key: str) -> pathlib.Path"
+          ]
+        },
+        "publication_id": {
+          "get": [
+            "(self) -> str"
+          ],
+          "kind": "property",
+          "set": null
+        },
+        "reuse": {
+          "kind": "function",
+          "signatures": [
+            "(self, publication_id: str | None = None, *, keys: collections.abc.Sequence[str] | None = None) -> tuple[asterstore.metadata._models.ObjectRef, ...]"
+          ]
+        },
+        "reuse_reference": {
+          "kind": "function",
+          "signatures": [
+            "(self, name: str, *, expected_revision: int, keys: collections.abc.Sequence[str] | None = None) -> tuple[asterstore.metadata._models.ObjectRef, ...]"
+          ]
+        },
+        "seal": {
+          "kind": "function",
+          "signatures": [
+            "(self) -> None"
+          ]
+        },
+        "write_bytes": {
+          "kind": "function",
+          "signatures": [
+            "(self, key: str, data: bytes) -> pathlib.Path"
+          ]
+        }
+      }
+    },
+    "CandidateAbandonedError": {
+      "bases": [
+        "CandidateStateError"
+      ],
+      "constructor": [
+        "(self, candidate_id: str) -> None"
+      ]
+    },
+    "CandidateCleanupResult": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(candidate_id: str, status: Literal['complete', 'blocked'], planned: bool, deleted_files: tuple[str, ...] = (), missing_files: tuple[str, ...] = (), remaining_files: tuple[str, ...] = (), issues: tuple[asterstore.metadata._retention.PreviewIssue, ...] = ()) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "candidate_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "status",
+          "type": "typing.Literal['complete', 'blocked']"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "planned",
+          "type": "<class 'bool'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "deleted_files",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "missing_files",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "remaining_files",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "issues",
+          "type": "tuple[asterstore.metadata._retention.PreviewIssue, ...]"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "CandidateInspection": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(status: Literal['complete', 'blocked'], candidates: tuple[asterstore.inspection._candidates.CandidateResidual, ...], unknown_locations: tuple[str, ...], issues: tuple[asterstore.metadata._retention.PreviewIssue, ...]) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "status",
+          "type": "typing.Literal['complete', 'blocked']"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "candidates",
+          "type": "tuple[asterstore.inspection._candidates.CandidateResidual, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "unknown_locations",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "issues",
+          "type": "tuple[asterstore.metadata._retention.PreviewIssue, ...]"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "CandidateResidual": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(candidate_id: str, dataset_id: str, publication_id: str, state: Literal['writing', 'prepared', 'conflict', 'abandoned'], sealed: bool, locations: tuple[str, ...], files: tuple[str, ...], total_bytes: int, shared_objects: tuple[asterstore.metadata._models.ObjectRef, ...], protects_shared: bool, cleanup_state: Literal['not_started', 'pending', 'complete']) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "candidate_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "dataset_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "publication_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "state",
+          "type": "typing.Literal['writing', 'prepared', 'conflict', 'abandoned']"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "sealed",
+          "type": "<class 'bool'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "locations",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "files",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "total_bytes",
+          "type": "<class 'int'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "shared_objects",
+          "type": "tuple[asterstore.metadata._models.ObjectRef, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "protects_shared",
+          "type": "<class 'bool'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "cleanup_state",
+          "type": "typing.Literal['not_started', 'pending', 'complete']"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "CandidateStateError": {
+      "bases": [
+        "AsterStoreError"
+      ]
+    },
+    "CandidateStatus": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(candidate_id: str, dataset_id: str, publication_id: str, state: Literal['writing', 'prepared', 'conflict', 'current', 'historical', 'retired', 'abandoned'], current_generation: int) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "candidate_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "dataset_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "publication_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "state",
+          "type": "typing.Literal['writing', 'prepared', 'conflict', 'current', 'historical', 'retired', 'abandoned']"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "current_generation",
+          "type": "<class 'int'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "Capabilities": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(management: asterstore.metadata.capabilities._models.Management, byte_stability: asterstore.metadata.capabilities._models.ByteStability, history: asterstore.metadata.capabilities._models.HistoryAccess = <HistoryAccess.CURRENT_ONLY: 'current_only'>) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "management",
+          "type": "<enum 'Management'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "byte_stability",
+          "type": "<enum 'ByteStability'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "history",
+          "type": "<enum 'HistoryAccess'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {
+        "managed": {
+          "kind": "classmethod",
+          "signatures": [
+            "(*, history: asterstore.metadata.capabilities._models.HistoryAccess = <HistoryAccess.CURRENT_ONLY: 'current_only'>) -> 'Capabilities'"
+          ]
+        },
+        "registered": {
+          "kind": "classmethod",
+          "signatures": [
+            "(*, byte_stability: asterstore.metadata.capabilities._models.ByteStability = <ByteStability.MUTABLE_OR_UNKNOWN: 'mutable_or_unknown'>, history: asterstore.metadata.capabilities._models.HistoryAccess = <HistoryAccess.CURRENT_ONLY: 'current_only'>) -> 'Capabilities'"
+          ]
+        },
+        "require_managed": {
+          "kind": "function",
+          "signatures": [
+            "(self) -> None"
+          ]
+        },
+        "require_retention": {
+          "kind": "function",
+          "signatures": [
+            "(self, scope: asterstore.metadata.capabilities._models.RetentionScope) -> None"
+          ]
+        },
+        "retention_scopes": {
+          "get": [
+            "(self) -> frozenset[asterstore.metadata.capabilities._models.RetentionScope]"
+          ],
+          "kind": "property",
+          "set": null
+        }
+      }
+    },
+    "CollectionPolicy": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(datasets: tuple[str, ...], keep_last: int = 1) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "datasets",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "keep_last",
+          "type": "<class 'int'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "CollectionPreview": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(policy: asterstore.metadata._retention.CollectionPolicy, status: Literal['complete', 'blocked'], publications: tuple[asterstore.retention.collection._models.PublicationDecision, ...], objects: tuple[asterstore.retention.collection._models.ObjectDecision, ...], issues: tuple[asterstore.metadata._retention.PreviewIssue, ...] = (), pending_operations: tuple[str, ...] = ()) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "policy",
+          "type": "<class 'asterstore.metadata._retention.CollectionPolicy'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "status",
+          "type": "typing.Literal['complete', 'blocked']"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "publications",
+          "type": "tuple[asterstore.retention.collection._models.PublicationDecision, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "objects",
+          "type": "tuple[asterstore.retention.collection._models.ObjectDecision, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "issues",
+          "type": "tuple[asterstore.metadata._retention.PreviewIssue, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "pending_operations",
+          "type": "tuple[str, ...]"
+        }
+      ],
+      "frozen": true,
+      "methods": {
+        "reclaimable_objects": {
+          "get": [
+            "(self) -> tuple[asterstore.metadata._models.ObjectRef, ...]"
+          ],
+          "kind": "property",
+          "set": null
+        },
+        "retiring_publications": {
+          "get": [
+            "(self) -> tuple[asterstore.metadata._models.Publication, ...]"
+          ],
+          "kind": "property",
+          "set": null
+        }
+      }
+    },
+    "CollectionResult": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(operation_id: str | None, policy: asterstore.metadata._retention.CollectionPolicy, status: Literal['complete', 'blocked'], retired_publications: tuple[asterstore.metadata._models.Publication, ...] = (), deleted_objects: tuple[asterstore.metadata._models.ObjectRef, ...] = (), missing_objects: tuple[asterstore.metadata._models.ObjectRef, ...] = (), protected_objects: tuple[asterstore.metadata._models.ObjectRef, ...] = (), remaining_objects: tuple[asterstore.metadata._models.ObjectRef, ...] = (), issues: tuple[asterstore.metadata._retention.PreviewIssue, ...] = ()) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "operation_id",
+          "type": "str | None"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "policy",
+          "type": "<class 'asterstore.metadata._retention.CollectionPolicy'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "status",
+          "type": "typing.Literal['complete', 'blocked']"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "retired_publications",
+          "type": "tuple[asterstore.metadata._models.Publication, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "deleted_objects",
+          "type": "tuple[asterstore.metadata._models.ObjectRef, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "missing_objects",
+          "type": "tuple[asterstore.metadata._models.ObjectRef, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "protected_objects",
+          "type": "tuple[asterstore.metadata._models.ObjectRef, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "remaining_objects",
+          "type": "tuple[asterstore.metadata._models.ObjectRef, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "issues",
+          "type": "tuple[asterstore.metadata._retention.PreviewIssue, ...]"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "Dataset": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(dataset_id: str, physical_history: asterstore.metadata._models.PhysicalHistory = <PhysicalHistory.CURRENT_ONLY: 'current_only'>) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "dataset_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "physical_history",
+          "type": "<enum 'PhysicalHistory'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "Declaration": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(dataset_id: str, publication_id: str, files: asterstore.metadata.membership._models.FileSet, capabilities: asterstore.metadata.capabilities._models.Capabilities) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "dataset_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "publication_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "files",
+          "type": "<class 'asterstore.metadata.membership._models.FileSet'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "capabilities",
+          "type": "<class 'asterstore.metadata.capabilities._models.Capabilities'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "DeclarationRecord": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(store_id: str, operation_id: str, expected_generation: int, declaration: asterstore.metadata.declarations._models.Declaration) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "store_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "operation_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "expected_generation",
+          "type": "<class 'int'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "declaration",
+          "type": "<class 'asterstore.metadata.declarations._models.Declaration'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {
+        "check_store": {
+          "kind": "function",
+          "signatures": [
+            "(self, store: asterstore.metadata.protocol._models.StoreRecord) -> None"
+          ]
+        },
+        "generation": {
+          "get": [
+            "(self) -> int"
+          ],
+          "kind": "property",
+          "set": null
+        }
+      }
+    },
+    "FileSet": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(objects: collections.abc.Sequence[asterstore.metadata.membership._models.Object], members: collections.abc.Sequence[asterstore.metadata.membership._models.Member]) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "objects",
+          "type": "collections.abc.Sequence[asterstore.metadata.membership._models.Object]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "members",
+          "type": "collections.abc.Sequence[asterstore.metadata.membership._models.Member]"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "FixedRetention": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(store_id: str, name: str, dataset_id: str, publication_id: str, scope: asterstore.metadata.capabilities._models.RetentionScope, revision: int = 1, active: bool = True) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "store_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "name",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "dataset_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "publication_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "scope",
+          "type": "<enum 'RetentionScope'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "revision",
+          "type": "<class 'int'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "active",
+          "type": "<class 'bool'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "Governance": {
+      "bases": [
+        "object"
+      ],
+      "construction": "repository factory",
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "root",
+          "type": "<class 'pathlib.Path'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {
+        "abandon": {
+          "kind": "function",
+          "signatures": [
+            "(self, operation_id: str) -> None"
+          ]
+        },
+        "cleanup": {
+          "kind": "function",
+          "signatures": [
+            "(self, operation_id: str) -> asterstore.retention.governance.cleanup._service.ManagedCleanupResult"
+          ]
+        },
+        "collect": {
+          "kind": "function",
+          "signatures": [
+            "(self, operation_id: str) -> asterstore.retention.governance._collection.GovernanceResult"
+          ]
+        },
+        "get": {
+          "kind": "function",
+          "signatures": [
+            "(self, name: str) -> asterstore.metadata.protocol._governance.FixedRetention"
+          ]
+        },
+        "open": {
+          "kind": "function",
+          "signatures": [
+            "(self, name: str, *, expected_revision: int, resources: collections.abc.Mapping[str, str | pathlib.Path] | None = None) -> asterstore.reading._binding.Binding[asterstore.metadata.declarations._models.Declaration]"
+          ]
+        },
+        "preview": {
+          "kind": "function",
+          "signatures": [
+            "(self) -> asterstore.retention.governance._collection.GovernancePreview"
+          ]
+        },
+        "preview_cleanup": {
+          "kind": "function",
+          "signatures": [
+            "(self, operation_id: str) -> asterstore.retention.governance.cleanup._service.ManagedCleanupPreview"
+          ]
+        },
+        "release": {
+          "kind": "function",
+          "signatures": [
+            "(self, name: str, *, expected_revision: int) -> asterstore.metadata.protocol._governance.FixedRetention"
+          ]
+        },
+        "resume_cleanup": {
+          "kind": "function",
+          "signatures": [
+            "(self, operation_id: str) -> asterstore.retention.governance.cleanup._service.ManagedCleanupResult"
+          ]
+        },
+        "resume_collection": {
+          "kind": "function",
+          "signatures": [
+            "(self, operation_id: str) -> asterstore.retention.governance._collection.GovernanceResult"
+          ]
+        },
+        "retain": {
+          "kind": "function",
+          "signatures": [
+            "(self, name: str, dataset_id: str, publication_id: str, *, scope: asterstore.metadata.capabilities._models.RetentionScope, expected_revision: int = 0) -> asterstore.metadata.protocol._governance.FixedRetention"
+          ]
+        }
+      }
+    },
+    "GovernancePreview": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(retiring: tuple[asterstore.metadata.protocol._models.DeclarationRecord, ...], reclaimable: tuple[asterstore.metadata.protocol._models.ObjectRecord, ...], protected_objects: tuple[str, ...], retained_metadata: tuple[tuple[str, str], ...]) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "retiring",
+          "type": "tuple[asterstore.metadata.protocol._models.DeclarationRecord, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "reclaimable",
+          "type": "tuple[asterstore.metadata.protocol._models.ObjectRecord, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "protected_objects",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "retained_metadata",
+          "type": "tuple[tuple[str, str], ...]"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "GovernanceResult": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(operation_id: str, retired_publications: tuple[tuple[str, str], ...], deleted_objects: tuple[str, ...], missing_objects: tuple[str, ...], protected_objects: tuple[str, ...], complete: bool) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "operation_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "retired_publications",
+          "type": "tuple[tuple[str, str], ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "deleted_objects",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "missing_objects",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "protected_objects",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "complete",
+          "type": "<class 'bool'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "HistoryAccess": {
+      "enum": {
+        "CURRENT_ONLY": "current_only",
+        "VERSIONED": "versioned"
+      }
+    },
+    "HistoryUnavailableError": {
+      "bases": [
+        "AsterStoreError"
+      ]
+    },
+    "Inspection": {
+      "bases": [
+        "object"
+      ],
+      "construction": "repository factory",
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "root",
+          "type": "<class 'pathlib.Path'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {
+        "candidates": {
+          "kind": "function",
+          "signatures": [
+            "(self) -> asterstore.inspection._candidates.CandidateInspection"
+          ]
+        }
+      }
+    },
+    "InvalidDeclarationError": {
+      "bases": [
+        "AsterStoreError",
+        "ValueError"
+      ]
+    },
+    "Locator": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(resource_id: str, relative_path: str) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "resource_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "relative_path",
+          "type": "<class 'str'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "ManagedCandidate": {
+      "bases": [
+        "object"
+      ],
+      "construction": "repository factory",
+      "methods": {
+        "__enter__": {
+          "kind": "function",
+          "signatures": [
+            "(self) -> 'ManagedCandidate'"
+          ]
+        },
+        "__exit__": {
+          "kind": "function",
+          "signatures": [
+            "(self, exc_type: type[BaseException] | None, exc: BaseException | None, traceback: traceback | None) -> None"
+          ]
+        },
+        "alias": {
+          "kind": "function",
+          "signatures": [
+            "(self, key: str, *, member: str) -> None"
+          ]
+        },
+        "commit": {
+          "kind": "function",
+          "signatures": [
+            "(self) -> asterstore.metadata.protocol._models.DeclarationRecord"
+          ]
+        },
+        "path": {
+          "kind": "function",
+          "signatures": [
+            "(self, key: str, *, relative_path: str) -> pathlib.Path"
+          ]
+        },
+        "reuse": {
+          "kind": "function",
+          "signatures": [
+            "(self, publication_id: str | None = None, *, keys: collections.abc.Sequence[str] | None = None) -> tuple[asterstore.metadata.membership._models.Object, ...]"
+          ]
+        },
+        "seal": {
+          "kind": "function",
+          "signatures": [
+            "(self) -> asterstore.metadata.protocol._models.DeclarationRecord"
+          ]
+        },
+        "write_bytes": {
+          "kind": "function",
+          "signatures": [
+            "(self, key: str, data: bytes, *, relative_path: str) -> pathlib.Path"
+          ]
+        }
+      }
+    },
+    "ManagedCandidateStatus": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(operation_id: str, state: Literal['writing', 'prepared', 'conflict', 'current', 'historical', 'retired', 'abandoned']) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "operation_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "state",
+          "type": "typing.Literal['writing', 'prepared', 'conflict', 'current', 'historical', 'retired', 'abandoned']"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "ManagedCleanupPreview": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(operation_id: str, location: Literal['private', 'installed'], files: tuple[str, ...], planned: bool) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "operation_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "location",
+          "type": "typing.Literal['private', 'installed']"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "files",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "planned",
+          "type": "<class 'bool'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "ManagedCleanupResult": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(operation_id: str, location: Literal['private', 'installed'], deleted_files: tuple[str, ...], missing_files: tuple[str, ...], complete: bool) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "operation_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "location",
+          "type": "typing.Literal['private', 'installed']"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "deleted_files",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "missing_files",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "complete",
+          "type": "<class 'bool'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "Management": {
+      "enum": {
+        "MANAGED": "managed",
+        "REGISTERED": "registered"
+      }
+    },
+    "Member": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(key: str, object_id: str) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "key",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "object_id",
+          "type": "<class 'str'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "Object": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(object_id: str, locator: asterstore.metadata.membership._models.Locator) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "object_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "locator",
+          "type": "<class 'asterstore.metadata.membership._models.Locator'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "ObjectDecision": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(object: asterstore.metadata._models.ObjectRef, reclaimable: bool, reasons: tuple[str, ...]) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "object",
+          "type": "<class 'asterstore.metadata._models.ObjectRef'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "reclaimable",
+          "type": "<class 'bool'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "reasons",
+          "type": "tuple[str, ...]"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "ObjectRecord": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(store_id: str, object_id: str, locator: asterstore.metadata.membership._models.Locator, byte_stability: asterstore.metadata.capabilities._models.ByteStability, creator_operation_id: str | None = None) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "store_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "object_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "locator",
+          "type": "<class 'asterstore.metadata.membership._models.Locator'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "byte_stability",
+          "type": "<enum 'ByteStability'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "creator_operation_id",
+          "type": "str | None"
+        }
+      ],
+      "frozen": true,
+      "methods": {
+        "management": {
+          "get": [
+            "(self) -> asterstore.metadata.capabilities._models.Management"
+          ],
+          "kind": "property",
+          "set": null
+        }
+      }
+    },
+    "ObjectRef": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(key: str) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "key",
+          "type": "<class 'str'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "PhysicalHistory": {
+      "enum": {
+        "CURRENT_ONLY": "current_only",
+        "VERSIONED": "versioned"
+      }
+    },
+    "PreviewIssue": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(path: str, message: str) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "path",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "message",
+          "type": "<class 'str'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "Publication": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(dataset: asterstore.metadata._models.Dataset, publication_id: str, objects: collections.abc.Sequence[asterstore.metadata._models.ObjectRef]) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "dataset",
+          "type": "<class 'asterstore.metadata._models.Dataset'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "publication_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "objects",
+          "type": "collections.abc.Sequence[asterstore.metadata._models.ObjectRef]"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "PublicationConflictError": {
+      "bases": [
+        "AsterStoreError"
+      ]
+    },
+    "PublicationDecision": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(publication: asterstore.metadata._models.Publication, generation: int, retire: bool, reasons: tuple[str, ...]) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "publication",
+          "type": "<class 'asterstore.metadata._models.Publication'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "generation",
+          "type": "<class 'int'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "retire",
+          "type": "<class 'bool'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "reasons",
+          "type": "tuple[str, ...]"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "PublicationNotFoundError": {
+      "bases": [
+        "AsterStoreError",
+        "FileNotFoundError"
+      ]
+    },
+    "PublicationRetiredError": {
+      "bases": [
+        "AsterStoreError"
+      ],
+      "constructor": [
+        "(self, dataset_id: str, publication_id: str, candidate_id: str) -> None"
+      ]
+    },
+    "Reference": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(name: str, dataset_id: str, publication_id: str) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "name",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "dataset_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "publication_id",
+          "type": "<class 'str'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "ReferenceConflictError": {
+      "bases": [
+        "AsterStoreError"
+      ]
+    },
+    "ReferenceNotFoundError": {
+      "bases": [
+        "AsterStoreError",
+        "KeyError"
+      ]
+    },
+    "ReferenceRecord": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(reference: asterstore.metadata._models.Reference, revision: int, state: Literal['active', 'released'], selection: Literal['current', 'publication'], format_version: int = 3) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "reference",
+          "type": "<class 'asterstore.metadata._models.Reference'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "revision",
+          "type": "<class 'int'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "state",
+          "type": "typing.Literal['active', 'released']"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "selection",
+          "type": "typing.Literal['current', 'publication']"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "format_version",
+          "type": "<class 'int'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "RegistrationStatus": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(state: Literal['planned', 'committed', 'conflict'], record: asterstore.metadata.protocol._models.DeclarationRecord) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "state",
+          "type": "typing.Literal['planned', 'committed', 'conflict']"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "record",
+          "type": "<class 'asterstore.metadata.protocol._models.DeclarationRecord'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "Repository": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(root: str | pathlib.Path) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "root",
+          "type": "<class 'pathlib.Path'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {
+        "abandon": {
+          "kind": "function",
+          "signatures": [
+            "(self, candidate_id: str) -> asterstore.publishing._recovery.CandidateStatus"
+          ]
+        },
+        "bind": {
+          "kind": "function",
+          "signatures": [
+            "(self, publication: asterstore.metadata._models.Publication) -> asterstore.reading._binding.Binding[asterstore.metadata._models.Publication]",
+            "(self, publication: asterstore.metadata.declarations._models.Declaration, *, resources: collections.abc.Mapping[str, str | pathlib.Path]) -> asterstore.reading._binding.Binding[asterstore.metadata.declarations._models.Declaration]"
+          ]
+        },
+        "candidate_status": {
+          "kind": "function",
+          "signatures": [
+            "(self, candidate_id: str) -> asterstore.publishing._recovery.CandidateStatus"
+          ]
+        },
+        "describe": {
+          "kind": "function",
+          "signatures": [
+            "(self, dataset_id: str, *, publication_id: str | None = None) -> asterstore.metadata.protocol._models.DeclarationRecord"
+          ]
+        },
+        "governance": {
+          "get": [
+            "(self) -> asterstore.retention.governance._service.Governance"
+          ],
+          "kind": "property",
+          "set": null
+        },
+        "initialize": {
+          "kind": "function",
+          "signatures": [
+            "(self, *, resource_ids: collections.abc.Sequence[str], store_id: str | None = None, managed_resource_id: str | None = None, lifecycle: bool = False, durable: bool = True) -> asterstore.metadata.protocol._models.StoreRecord"
+          ]
+        },
+        "inspection": {
+          "get": [
+            "(self) -> asterstore.inspection._candidates.Inspection"
+          ],
+          "kind": "property",
+          "set": null
+        },
+        "managed_status": {
+          "kind": "function",
+          "signatures": [
+            "(self, operation_id: str) -> asterstore.publishing.managed._status.ManagedCandidateStatus"
+          ]
+        },
+        "open": {
+          "kind": "function",
+          "signatures": [
+            "(self, dataset_id: str, *, publication_id: str | None = None, resources: None = None) -> Union[asterstore.reading._binding.Binding[asterstore.metadata._models.Publication], asterstore.reading._binding.Binding[asterstore.metadata.declarations._models.Declaration]]",
+            "(self, dataset_id: str, *, publication_id: str | None = None, resources: collections.abc.Mapping[str, str | pathlib.Path]) -> asterstore.reading._binding.Binding[asterstore.metadata.declarations._models.Declaration]"
+          ]
+        },
+        "prepare": {
+          "kind": "function",
+          "signatures": [
+            "(self, dataset: asterstore.metadata._models.Dataset, *, publication_id: str | None = None, expected_generation: int | None = None, durable: bool = True) -> asterstore.publishing._candidate.Candidate"
+          ]
+        },
+        "prepare_managed": {
+          "kind": "function",
+          "signatures": [
+            "(self, dataset_id: str, *, publication_id: str, operation_id: str, expected_generation: int, history: asterstore.metadata.capabilities._models.HistoryAccess = <HistoryAccess.CURRENT_ONLY: 'current_only'>, durable: bool = True) -> asterstore.publishing.managed._candidate.ManagedCandidate"
+          ]
+        },
+        "register": {
+          "kind": "function",
+          "signatures": [
+            "(self, declaration: asterstore.metadata.declarations._models.Declaration, *, operation_id: str, expected_generation: int, durable: bool = True) -> asterstore.metadata.protocol._models.DeclarationRecord"
+          ]
+        },
+        "registration_status": {
+          "kind": "function",
+          "signatures": [
+            "(self, operation_id: str) -> asterstore.publishing.transactions._commit.RegistrationStatus"
+          ]
+        },
+        "resume": {
+          "kind": "function",
+          "signatures": [
+            "(self, candidate_id: str, *, durable: bool = True) -> asterstore.publishing._candidate.Candidate"
+          ]
+        },
+        "resume_managed": {
+          "kind": "function",
+          "signatures": [
+            "(self, operation_id: str, *, durable: bool = True) -> asterstore.publishing.managed._candidate.ManagedCandidate"
+          ]
+        },
+        "resume_registration": {
+          "kind": "function",
+          "signatures": [
+            "(self, operation_id: str, *, durable: bool = True) -> asterstore.metadata.protocol._models.DeclarationRecord"
+          ]
+        },
+        "retention": {
+          "get": [
+            "(self) -> asterstore.retention._service.Retention"
+          ],
+          "kind": "property",
+          "set": null
+        }
+      }
+    },
+    "RepositoryNotInitializedError": {
+      "bases": [
+        "AsterStoreError",
+        "FileNotFoundError"
+      ]
+    },
+    "RepositoryUpgradeRequiredError": {
+      "bases": [
+        "AsterStoreError"
+      ]
+    },
+    "ResourceNotBoundError": {
+      "bases": [
+        "AsterStoreError",
+        "KeyError"
+      ]
+    },
+    "RetainedPublication": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(reference: asterstore.metadata._models.Reference, revision: int, binding: asterstore.reading._binding.Binding[asterstore.metadata._models.Publication]) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "reference",
+          "type": "<class 'asterstore.metadata._models.Reference'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "revision",
+          "type": "<class 'int'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "binding",
+          "type": "asterstore.reading._binding.Binding[asterstore.metadata._models.Publication]"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "Retention": {
+      "bases": [
+        "object"
+      ],
+      "construction": "repository factory",
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "root",
+          "type": "<class 'pathlib.Path'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {
+        "cleanup_candidate": {
+          "kind": "function",
+          "signatures": [
+            "(self, candidate_id: str) -> asterstore.retention.cleanup._operations.CandidateCleanupResult"
+          ]
+        },
+        "collect": {
+          "kind": "function",
+          "signatures": [
+            "(self, policy: asterstore.metadata._retention.CollectionPolicy) -> asterstore.retention.collection._models.CollectionResult"
+          ]
+        },
+        "get": {
+          "kind": "function",
+          "signatures": [
+            "(self, name: str) -> asterstore.metadata._retention.ReferenceRecord | None"
+          ]
+        },
+        "open": {
+          "kind": "function",
+          "signatures": [
+            "(self, name: str, *, expected_revision: int) -> asterstore.retention.references._operations.RetainedPublication"
+          ]
+        },
+        "preview": {
+          "kind": "function",
+          "signatures": [
+            "(self, policy: asterstore.metadata._retention.CollectionPolicy) -> asterstore.retention.collection._models.CollectionPreview"
+          ]
+        },
+        "release": {
+          "kind": "function",
+          "signatures": [
+            "(self, name: str, *, expected_revision: int, durable: bool = True) -> asterstore.metadata._retention.ReferenceRecord"
+          ]
+        },
+        "resume_collection": {
+          "kind": "function",
+          "signatures": [
+            "(self, operation_id: str) -> asterstore.retention.collection._models.CollectionResult"
+          ]
+        },
+        "retain": {
+          "kind": "function",
+          "signatures": [
+            "(self, name: str, dataset_id: str, *, publication_id: str | None = None, expected_revision: int = 0, durable: bool = True) -> asterstore.retention.references._operations.RetainedPublication"
+          ]
+        }
+      }
+    },
+    "RetentionScope": {
+      "enum": {
+        "METADATA": "metadata",
+        "OBJECTS": "objects"
+      }
+    },
+    "StoreCorruptionError": {
+      "bases": [
+        "AsterStoreError"
+      ]
+    },
+    "StoreRecord": {
+      "bases": [
+        "object"
+      ],
+      "constructor": [
+        "(store_id: str, resource_ids: tuple[str, ...], managed_resource_id: str | None = None, lifecycle: bool = False) -> None"
+      ],
+      "fields": [
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "store_id",
+          "type": "<class 'str'>"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "resource_ids",
+          "type": "tuple[str, ...]"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "managed_resource_id",
+          "type": "str | None"
+        },
+        {
+          "init": true,
+          "kw_only": false,
+          "name": "lifecycle",
+          "type": "<class 'bool'>"
+        }
+      ],
+      "frozen": true,
+      "methods": {}
+    },
+    "UnknownMemberError": {
+      "bases": [
+        "AsterStoreError",
+        "KeyError"
+      ]
+    },
+    "UnknownObjectError": {
+      "bases": [
+        "AsterStoreError",
+        "KeyError"
+      ]
+    },
+    "UnsupportedCapabilityError": {
+      "bases": [
+        "AsterStoreError",
+        "ValueError"
+      ]
+    },
+    "UnsupportedPlatformError": {
+      "bases": [
+        "AsterStoreError"
+      ]
+    }
+  },
+  "baseline": "0.1",
+  "integrations": {
+    "asterstore.integrations.polars.scan_parquet": [
+      "(binding: 'Binding[Publication | Declaration]', *, keys: 'Sequence[str] | None' = None, hive_partitioning: 'bool' = False) -> 'pl.LazyFrame'"
+    ]
+  },
+  "legacy_exports": [
+    "Candidate",
+    "CandidateCleanupResult",
+    "CandidateInspection",
+    "CandidateResidual",
+    "CandidateStatus",
+    "CollectionPolicy",
+    "CollectionPreview",
+    "CollectionResult",
+    "Dataset",
+    "Inspection",
+    "ObjectDecision",
+    "ObjectRef",
+    "PhysicalHistory",
+    "PreviewIssue",
+    "Publication",
+    "PublicationDecision",
+    "Reference",
+    "ReferenceRecord",
+    "RetainedPublication",
+    "Retention"
+  ],
+  "wire": {
+    "feature_combinations": [
+      [
+        "registered"
+      ],
+      [
+        "registered",
+        "lifecycle"
+      ],
+      [
+        "registered",
+        "managed"
+      ],
+      [
+        "registered",
+        "managed",
+        "lifecycle"
+      ]
+    ],
+    "file_sha256": {
+      "src/asterstore/metadata/schemas/v3.json": "f9035b29ca548e7886944191b769cd07ac153e2df46b158b7f9c82e6f5409f99",
+      "src/asterstore/metadata/schemas/v4.json": "b370e312db10e07fa667b813fd07b131efdacf0aea85c14394a2b8a0d1efa4cd",
+      "tests/fixtures/protocol/v1/candidate.json": "43c509e4ab6e4546fed8827528f9e9458dfcf2bdfd9d477ee42e8159f08adca9",
+      "tests/fixtures/protocol/v1/current.json": "d8b23e54d5954bb456349fd9fdabea1f043d398101c700c69bc275df1d20ae04",
+      "tests/fixtures/protocol/v2/abandoned-candidate.json": "efcb063e6a9e9179de9c0ed7d421a3faf4332d800e433d005342f5abe70383fc",
+      "tests/fixtures/protocol/v2/candidate.json": "bdf31a0802a6cd519e1ba5490ec72fbc04d4d0bee84a420b51f7ec1f6bbf4cd9",
+      "tests/fixtures/protocol/v2/cleanup-plan.json": "d75b4f4759fcc1567ad6dba3d42f3e2a5d53d67c78936210cf94da7388d05610",
+      "tests/fixtures/protocol/v2/cleanup-progress.json": "7abb59ca28bb0ce4b6269a7ae261c30c5e20ad4bd1e72cccd527dab4c0dd636f",
+      "tests/fixtures/protocol/v2/collection-plan.json": "a5e073914e82e5913bac6874dafa5fe6ba1c6903beccd51b0b60e763249d72d2",
+      "tests/fixtures/protocol/v2/collection-progress.json": "8ff970c9948449a00473924d50571b62da9fc04b891f9a31bff9dbe483d193c8",
+      "tests/fixtures/protocol/v2/current.json": "2259eccd5b24799f625d6120c9657034a25892f30c082d9843dce386f934dab7",
+      "tests/fixtures/protocol/v2/reference.json": "323f0a77f3ff6c94eb74aa4ffffaf244b7187692833ea7f821079cc809e14fa5",
+      "tests/fixtures/protocol/v2/retired.json": "ffd37b616da7ab68fe96a3d251b6a426ee8cfbeaad654868018744f9d2c7f32a",
+      "tests/fixtures/protocol/v2/reuse-candidate.json": "02bd66f9ad15c0f56287d9c740ae0c9a66d1acfa2bdb457facc35fe2e9f95a94",
+      "tests/fixtures/protocol/v2/reuse-current.json": "c4f157b8d09b9d769194868a694ecef5ef82593d8dd70b656ff4cae413cb1334",
+      "tests/fixtures/protocol/v3/abandoned-candidate.json": "ac576973e392c2f97b7c8cf997cfd216c6f0b63c2783d8fd7cdbfbba641c59fa",
+      "tests/fixtures/protocol/v3/candidate.json": "a2b8c54abc869eafcc30b6224d3649aae90cd381c0dd7e5c904ad0f6194285da",
+      "tests/fixtures/protocol/v3/cleanup-plan.json": "b1c0c55d892ea394cfe0997f9b0a4fe8ccd7b07fb894f585d78bb9a94fe2699c",
+      "tests/fixtures/protocol/v3/cleanup-progress.json": "078db800c7a424187fc61f8ab9dd49f27d32e09f7497f014809a8b008320501e",
+      "tests/fixtures/protocol/v3/collection-plan.json": "5521c28a5c51021be05515d69a086e0a10777814dd3edfa3acb8c4afd3cd5043",
+      "tests/fixtures/protocol/v3/collection-progress.json": "b3f7c109fa536dfecc641c45bbc15962b79ab76a2856c93c10a8a70c94fab42e",
+      "tests/fixtures/protocol/v3/current.json": "a038e37eb5e63519c82e0914af0525538092fa7ef6d84c4684754db88cb496cb",
+      "tests/fixtures/protocol/v3/invalid/control-identifier.json": "e475592428139149bbb627065d1fb403d7355c3732e1a8e34aef063fffa1e351",
+      "tests/fixtures/protocol/v3/invalid/mixed-collection.json": "36c5fb96172c2398bba2e6c809be782d436b4b8cb40c6a08cbcaf7f625987dce",
+      "tests/fixtures/protocol/v3/invalid/traversal-key.json": "ad89f3dcb28c24d89bc2aab0759dfd3d787be189fd8b6c00e771c123ed4c032e",
+      "tests/fixtures/protocol/v3/invalid/unknown-field.json": "f07c8e8556c9d8e16d208822ebb813dab03897be3ca1c6c79030a453afecc6c4",
+      "tests/fixtures/protocol/v3/opaque-candidate.json": "b88123c7e7b1d6c081c84573e103f0b31375b53bd605849fb7591d6a4344defa",
+      "tests/fixtures/protocol/v3/reference.json": "608dc9e5f1e6aee55e4b23c99dfda18fa33ed2bf667bdb60c354dd86f9fbda17",
+      "tests/fixtures/protocol/v3/repository.json": "c9b2ccd7134048bbfa25ecf27d0c96913d4fdbfd909cea9795666ac8f147c2aa",
+      "tests/fixtures/protocol/v3/retired.json": "f024d4977e6b1ea188893c5ff5dc5162fb0766737d14e3201dd87d715cf4782b",
+      "tests/fixtures/protocol/v3/reuse-candidate.json": "9d1d939eaf87b659e9788a7e6d4ae42321556d64a8c824f7cf3649165343ed00",
+      "tests/fixtures/protocol/v3/reuse-current.json": "d2908a5e2aea66c60a9e7f5cd7b2df479ff5b62e74385f6be442af5b4f2e79cb",
+      "tests/fixtures/protocol/v4/cleanup/plan.json": "08549b3ac417c74fd4299f2a4f862692ce21cb99e5f6e78e4a245f85fd01910e",
+      "tests/fixtures/protocol/v4/cleanup/progress.json": "739256586fbdeefeb389ae4080d0e4a07721ee71df706dfec4b034f28cd0f7de",
+      "tests/fixtures/protocol/v4/governance/abandonment.json": "0c109b5baa8501c80347dde844b1be91fb022769ac5a32d34c5e113b1a1b8de7",
+      "tests/fixtures/protocol/v4/governance/plan.json": "26c3ee9c65d373b8ae579cb47583e5397613f1e41c418271256b8e4bb23502a6",
+      "tests/fixtures/protocol/v4/governance/progress.json": "7e7f1481914a824fc9e8a5b247c52e989602074aed75829b4816cdbfc21d47c8",
+      "tests/fixtures/protocol/v4/governance/repository.json": "2f0fe61bdbdcde282178f4b38ded94297e8ae9556a62ad72b5b1f52c66bc6d06",
+      "tests/fixtures/protocol/v4/governance/retention.json": "384d7e46e0012c256d8341396b458c7a8658d608e9aecf0b606195c9314b63a6",
+      "tests/fixtures/protocol/v4/governance/retired.json": "04d196dbae76217e51abbacfafc2210fa7e712bc2f4544cec3f4dd95e7f3d623",
+      "tests/fixtures/protocol/v4/invalid/boolean-generation.json": "8273d2eda134b2fb7b0af309c067986ee606d7cbd2d91b46ebaa24612786f074",
+      "tests/fixtures/protocol/v4/invalid/duplicate-resource.json": "5feaf91f5c11be16bffedc09f6a80ec8c6c71addd882a7a66dacb42190c25f04",
+      "tests/fixtures/protocol/v4/invalid/overflow-generation.json": "54e9d6efd8a9d5d17998461ae540df8746e8ca480a3bd8f2e799d335a79d0376",
+      "tests/fixtures/protocol/v4/invalid/unclosed-membership.json": "4512a4185d704300a6ccd60198342d619e2b2f284be1618bfc2081bdf284c918",
+      "tests/fixtures/protocol/v4/invalid/unknown-feature.json": "ffefb1ac13f183ec0d162350f414dbd64d26221f71d5c69abeffb5ae86d522f8",
+      "tests/fixtures/protocol/v4/managed/object.json": "8b1cef87647ba070d02653c3d42c6762aee6a45fd3bde04ced6cb3320af336a2",
+      "tests/fixtures/protocol/v4/managed/publication.json": "c204f7784f8493a2afe95a63993e1f23d184e28f47433ab14aae82e1ccabf634",
+      "tests/fixtures/protocol/v4/managed/repository.json": "40478980b7a25d3d1b6fc70c6b7c906d5084ac0cf6b57140ddaa91c0ca9c59f9",
+      "tests/fixtures/protocol/v4/managed/request.json": "935511455a8e10e94aa3c0ee6e77af0482fcf4a0c87b3e15b68eeb469136e0b7",
+      "tests/fixtures/protocol/v4/object.json": "e13d5d796d7f70287beebdd927f232513800ce4823655a1b615fa89d442be707",
+      "tests/fixtures/protocol/v4/publication.json": "8243842b576f6640f7d37dbe0bea042417b4f4b2df25f06631e259b5b1ab47f0",
+      "tests/fixtures/protocol/v4/repository.json": "f1761a920a09931d184efedf43c10450ffdda80eca0d8c246310fae317396a53"
+    },
+    "format_version": 4,
+    "max_generation": 9223372036854775807
+  }
+}

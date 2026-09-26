@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -172,14 +174,49 @@ def only_file(directory: Path, pattern: str) -> Path:
     return matches[0]
 
 
+def source_digest(root: Path) -> str:
+    """Hash source paths and bytes, excluding local build/environment state."""
+    ignored = {
+        ".git",
+        ".venv",
+        "dist",
+        "__pycache__",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".mypy_cache",
+    }
+    digest = hashlib.sha256()
+    for directory, subdirs, files in os.walk(root):
+        subdirs[:] = sorted(name for name in subdirs if name not in ignored)
+        for name in sorted(files):
+            path = Path(directory) / name
+            data = path.read_bytes()
+            digest.update(str(path.relative_to(root)).encode() + b"\0")
+            digest.update(str(len(data)).encode() + b"\0" + data)
+    return digest.hexdigest()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument(
         "--polars", action="store_true", help="also install and verify the engine extra"
     )
+    parser.add_argument(
+        "--output-dir", type=Path, help="preserve verified artifacts in a new directory"
+    )
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
+    if args.output_dir is not None:
+        args.output_dir = args.output_dir.resolve()
+        if args.output_dir.exists():
+            parser.error("output directory already exists; refusing to overwrite artifacts")
+        if args.output_dir.is_relative_to(root) and not args.output_dir.is_relative_to(
+            root / "dist"
+        ):
+            parser.error("use dist/ or an output directory outside the source tree")
+    before = source_digest(root)
+    run(args.python, str(root / "tools/check_contract.py"), cwd=root)
     with tempfile.TemporaryDirectory(prefix="asterstore-distribution-") as temporary:
         work = Path(temporary)
         output = work / "dist"
@@ -193,6 +230,11 @@ def main() -> None:
                 "LICENSE",
                 "SECURITY.md",
                 "CHANGELOG.md",
+                "docs/compatibility.md",
+                "docs/releasing.md",
+                "docs/contracts/0.1.json",
+                "tools/check_contract.py",
+                "tests/test_release_contract.py",
                 "tests/test_binding.py",
                 "tests/test_declarations.py",
                 "examples/declarations.py",
@@ -286,6 +328,36 @@ def main() -> None:
                     (root / "examples/parquet.py").read_text(),
                     cwd=smoke_directory,
                 )
+        if source_digest(root) != before:
+            raise RuntimeError("source changed during verification; artifacts are not exportable")
+        if args.output_dir is not None:
+            args.output_dir.mkdir(parents=True, exist_ok=False)
+            artifacts = []
+            for artifact in (only_file(output, "*.whl"), sdist):
+                destination = args.output_dir / artifact.name
+                shutil.copy2(artifact, destination)
+                artifacts.append(
+                    {
+                        "file": destination.name,
+                        "size": destination.stat().st_size,
+                        "sha256": hashlib.sha256(destination.read_bytes()).hexdigest(),
+                    }
+                )
+            report = {
+                "version": version,
+                "source_sha256": before,
+                "python": sys.version,
+                "checks": ["api_protocol_contract", "wheel_core", "sdist_rebuild_core"]
+                + (["wheel_polars", "sdist_rebuild_polars"] if args.polars else []),
+                "artifacts": artifacts,
+                "rebuilt_wheel_sha256": hashlib.sha256(
+                    only_file(rebuilt, "*.whl").read_bytes()
+                ).hexdigest(),
+            }
+            (args.output_dir / "verification.json").write_text(
+                json.dumps(report, indent=2) + "\n", encoding="utf-8"
+            )
+            print("Verified artifacts:", args.output_dir)
     print("Wheel, sdist rebuild and isolated installations: PASS")
 
 

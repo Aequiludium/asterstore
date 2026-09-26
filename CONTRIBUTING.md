@@ -2,7 +2,7 @@
 
 欢迎通过 [Issues](https://github.com/Aequiludium/asterstore/issues) 报告问题、讨论设计，通过 Pull Request 提交修改。漏洞请使用 [安全报告流程](SECURITY.md)。
 
-asterstore 当前处于 `0.1.0.dev0` 开发阶段。新功能围绕 [v4 首版范围](docs/release-scope.md) 展开；协议、删除授权、保留语义和公开 API 的修改应先说明问题、兼容影响与恢复路径。目标规范中的未交付能力不等于现有 API。
+asterstore 当前处于 `0.1.0rc1` 候选阶段，遵循 [0.1 冻结契约](docs/compatibility.md)。新功能围绕 [v4 首版范围](docs/release-scope.md) 展开；协议、删除授权、保留语义和公开 API 的修改应先说明问题、兼容影响与恢复路径。目标规范中的未交付能力不等于现有 API。
 
 ## 开发环境
 
@@ -15,6 +15,7 @@ uv sync --locked --extra polars
 uv run --locked --extra polars ruff check .
 uv run --locked --extra polars ruff format --check .
 uv run --locked --extra polars mypy
+uv run --locked --extra polars python tools/check_contract.py
 uv run --locked --extra polars pytest
 ```
 
