@@ -10,7 +10,7 @@ main 采用 PR 合并、要求分支同步且 `CI gate` 通过、解决讨论、
 
 ## 依赖与安全自动化
 
-[Dependabot](../.github/dependabot.yml) 使用 uv 原生 ecosystem 更新 uv.lock，每周一北京时间 09:00 检查 Python 依赖和 GitHub Actions。每种 ecosystem 最多 5 个更新 PR；开发依赖及 Actions 的 minor/patch 更新分组，major 更新单独评审。Bot 的 PR 使用相同 CI 和合并门槛，不自动批准或合并。
+[Dependabot](../.github/dependabot.yml) 使用 uv 原生 ecosystem 更新 uv.lock，每周一北京时间 09:00 检查 Python 依赖和 GitHub Actions。每种 ecosystem 最多 5 个更新 PR；开发依赖及普通 Actions 的 minor/patch 更新分组，major 更新单独评审。CodeQL 的 init/analyze 共享配置，必须保持相同版本，因此所有版本更新（包括 major）均归入专用 codeql 组，在同一个 PR 中升级。Bot 的 PR 使用相同 CI 和合并门槛，不自动批准或合并。
 
 [CodeQL](../.github/workflows/codeql.yml) 在 main、PR、每周和手动触发时扫描 Python；只授予该任务上传扫描结果需要的 security-events 权限。CodeQL 首版先作为可见安全检查，尚未将其分析结果设成 main 必过门槛。依赖漏洞提醒/安全更新、密钥扫描/推送保护和私密漏洞报告由仓库设置启用。扫描不替代数据权属和生命周期测试。
 

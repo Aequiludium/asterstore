@@ -23,8 +23,12 @@ updates:
       timezone: Asia/Shanghai
     open-pull-requests-limit: 5
     groups:
+      # init and analyze share configuration and must use the same version.
+      codeql:
+        patterns: ["github/codeql-action/*"]
       actions:
         patterns: ["*"]
+        exclude-patterns: ["github/codeql-action/*"]
         update-types: [minor, patch]
     commit-message:
       prefix: ci

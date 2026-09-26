@@ -220,7 +220,17 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="asterstore-distribution-") as temporary:
         work = Path(temporary)
         output = work / "dist"
-        run("uv", "build", "--no-sources", "--out-dir", str(output), str(root), cwd=work)
+        # Resolve the declared backend instead of using uv's bundled fast path.
+        run(
+            "uv",
+            "build",
+            "--force-pep517",
+            "--no-sources",
+            "--out-dir",
+            str(output),
+            str(root),
+            cwd=work,
+        )
         sdist = only_file(output, "*.tar.gz")
         with tarfile.open(sdist) as archive:
             members = {name.partition("/")[2] for name in archive.getnames()}
@@ -301,7 +311,17 @@ def main() -> None:
             if missing := required - members:
                 raise RuntimeError(f"sdist is missing: {sorted(missing)}")
         rebuilt = work / "rebuilt"
-        run("uv", "build", "--no-sources", "--wheel", str(sdist), "-o", str(rebuilt), cwd=work)
+        run(
+            "uv",
+            "build",
+            "--force-pep517",
+            "--no-sources",
+            "--wheel",
+            str(sdist),
+            "-o",
+            str(rebuilt),
+            cwd=work,
+        )
         for index, wheel in enumerate((only_file(output, "*.whl"), only_file(rebuilt, "*.whl"))):
             env = work / f"venv-{index}"
             run("uv", "venv", "--python", args.python, str(env), cwd=work)
