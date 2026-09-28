@@ -206,7 +206,7 @@ def test_checksum_requires_baseline_and_detects_same_size_tampering(tmp_path):
             repo.governance.check(**kwargs)
 
 
-def test_format_callback_is_explicit_and_cannot_mutate_store_reentrantly(tmp_path):
+def test_format_callback_is_explicit_and_nested_inspection_reports_busy(tmp_path):
     repo = repository(tmp_path)
     oid = publish(repo, "p1", 0)
     seen = []
@@ -352,3 +352,25 @@ def test_parquet_validation_remains_an_explicit_optional_engine_call(tmp_path):
         repo.governance.check(level="format", validator=parquet_metadata).issues[0].code
         == "format_error"
     )
+
+
+def test_retired_plan_validation_uses_linear_record_comparisons(tmp_path, monkeypatch):
+    from asterstore import DeclarationRecord
+
+    repo = repository(tmp_path)
+    count = 80
+    for generation in range(count):
+        publish(repo, f"p{generation}", generation)
+    repo.governance.collect("batch")
+    original = DeclarationRecord.__eq__
+    comparisons = 0
+
+    def counted(left, right):
+        nonlocal comparisons
+        comparisons += 1
+        return original(left, right)
+
+    monkeypatch.setattr(DeclarationRecord, "__eq__", counted)
+    assert not repo.governance.preview().reclaimable
+    # Whole-record integrity checks remain, but no triangular scan of a GC plan.
+    assert comparisons < 12 * count

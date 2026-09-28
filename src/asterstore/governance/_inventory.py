@@ -316,6 +316,7 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
     plans = {}
     collected: set[str] = set()
     progress_records = []
+    planned_retirements: dict[str, dict[PublicationKey, DeclarationRecord]] = {}
     for directory in entries(control / "collections"):
         children = entries(directory)
         if {p.name for p in children} - {"plan.json", "progress.json"}:
@@ -337,6 +338,8 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
         if directory / "progress.json" in children:
             control_bytes(directory / "progress.json", paths)
         plans[plan.operation_id] = plan
+        # Preserve full record equality without scanning the entire plan per retirement.
+        planned_retirements[plan.operation_id] = {key(p): p for p in plan.retirements}
     for directory in entries(control / "retired"):
         for path in entries(directory):
             retirement = decode_retired(control_bytes(path, paths))
@@ -347,7 +350,8 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
                 or publications.get(identity) != retirement.publication
                 or identity in current
                 or origin_plan is None
-                or retirement.publication not in origin_plan.retirements
+                or planned_retirements[retirement.collection_id].get(identity)
+                != retirement.publication
             ):
                 raise StoreCorruptionError("retirement lacks matching publication and plan")
             retired[identity] = retirement
