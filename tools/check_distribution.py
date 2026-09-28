@@ -111,6 +111,7 @@ managed.governance.release('task', expected_revision=held.revision)
 collected = managed.governance.collect('gc')
 assert len(collected.deleted_objects) == 1
 assert managed.governance.resume_collection('gc') == collected
+assert managed.governance.collection_status('gc').complete
 assert managed.candidate_status('op1').state == 'retired'
 assert managed.describe('result', publication_id='p1').declaration.publication_id == 'p1'
 with managed.prepare('result', publication_id='failed', operation_id='failed',
@@ -121,8 +122,17 @@ assert managed.governance.preview_cleanup('failed').files == ('partial.bin',)
 cleanup = managed.governance.cleanup('failed')
 assert cleanup.complete and cleanup.deleted_files == ('partial.bin',)
 assert managed.governance.resume_cleanup('failed') == cleanup
+assert managed.governance.cleanup_status('failed').complete
 assert not partial.exists()
 assert managed.governance.collect('after-cleanup').complete
+snapshot = managed.governance.inspect()
+assert snapshot.store_id == 'installed'
+current_oid = managed.describe('result').declaration.files.objects[0].object_id
+assert snapshot.explain_object(current_oid).reasons[0].kind == 'current'
+assert managed.governance.check(level='existence').ok
+assert managed.governance.check(
+    level='checksum', checksums={current_oid: hashlib.sha256(b'next generation').hexdigest()},
+).ok
 print('Isolated installation OK:', installed)
 """
 

@@ -1,0 +1,1665 @@
+{
+  "python": "3.12.12 (main, Feb 12 2026, 00:42:14) [Clang 21.1.4 ]",
+  "platform": "Linux-5.15.0-181-generic-x86_64-with-glibc2.35",
+  "cpu_count": 144,
+  "processes": 1,
+  "storage_label": "ext4 /dev/sda2 mounted at /tmp; warm uncontrolled cache",
+  "parent": "/tmp",
+  "publication_durable": true,
+  "governance_durable": true,
+  "repeats_read_operations": 3,
+  "repeats_mutations": 1,
+  "scope": "explicit members, one new 128-byte object per publication; no reuse or deps",
+  "caveats": "Warm uncontrolled OS cache and host load; no device identification or RSS. Read wall samples and tracemalloc peaks run separately from probes. Mutation timings include instrumentation. Phase timings overlap: fsync is nested inside control sync/deletion, so do not add phase totals. Lock timing is acquisition overhead without contention. Counters cover Path.read_bytes/iterdir and os.fsync, not os.walk/scandir, all syscalls or physical device traffic. Setup uses real public APIs. Empty-plan log buildup does not represent large historical deletion plans.",
+  "source_sha256": {
+    "benchmarks/governance_scale.py": "b1bb20eceee437f1ba32ba42d2430543f448589bd685511183536a45bc801e6b",
+    "src/asterstore/__init__.py": "beccdc289ff81ec3391a2f5977fa29e0537c6ddfe9d0f7e26487825de33ba47d",
+    "src/asterstore/errors.py": "a8d20c244375eff9131ff657239ba4dc89a862489a3979fe8d5414847454c32f",
+    "src/asterstore/governance/__init__.py": "ce1e421cf3d7ef6cc586bf4603acc5c5a6484b40814646984b7800012e31b7aa",
+    "src/asterstore/governance/_abandonment.py": "df1e92cb9d22eb525636ab68d891a698fe698c7598cd895e30af6da473055ae9",
+    "src/asterstore/governance/_collection.py": "c48bea31733fcef16cec2760f43305b162f42753bd069d77019ad263f41f3c87",
+    "src/asterstore/governance/_control.py": "07c9fd52c279e9cc5e6dd1b825d456d5da7dc212155b4ffcce9d5cab14cc74dd",
+    "src/asterstore/governance/_inventory.py": "efcc9a464d42ea1e4788b3d209e020ce19b1271921103d9122c6d9cb3d0eec5e",
+    "src/asterstore/governance/_references.py": "4a0fd695921362ef49b38f9caf8fa75eae58aeda4a620a067898abec305241c7",
+    "src/asterstore/governance/_service.py": "bfe7f717bf69454ecd7bcc77fbf8c472d83933ecb1756a7bbb25608b6a674bd4",
+    "src/asterstore/governance/cleanup/__init__.py": "6f8fe6e92ec2197147d0067add96b47843ba8579b7c4b3d19031c51bb77f63fa",
+    "src/asterstore/governance/cleanup/_service.py": "ede8753d9ec9e61d0891661fe73fba627db67f452e63575c6baf77ee704904b2",
+    "src/asterstore/governance/inspection/__init__.py": "63f266e9dd4b672b8b740fbf186dafc0cf0224872364a02fbb49e75468738e99",
+    "src/asterstore/governance/inspection/_checks.py": "15be7251656fada58933677fdac5d324ca9a8b64702843c7126813055ca99b3c",
+    "src/asterstore/governance/inspection/_locking.py": "d1ed826a0648987b21ab2be6bb4b198f21423985e4a2483aecb9fe09e28bcdcb",
+    "src/asterstore/governance/inspection/_models.py": "f42e333bf2b06e9b326176311ff46113a398911915d1c4d703636258d5523a11",
+    "src/asterstore/governance/inspection/_queries.py": "4243860044a9a5832faaf5894a16af1492bcb99a31dbb936c1a64d352f268da8",
+    "src/asterstore/governance/inspection/_service.py": "f792ab37c76436cae90f28fdf4079118f04b5989ae9b01c50149f25d2f08a245",
+    "src/asterstore/integrations/__init__.py": "c72bb8dbb8eb15cb1cf2d8d859d3a7724e49873fd525f9b7994c398e6cc2a78a",
+    "src/asterstore/integrations/polars/__init__.py": "704a9121a3a8e3c0a2238dc928475971a6e7370e46af1420f7677c87a596beda",
+    "src/asterstore/integrations/polars/_parquet.py": "5f556a477cbe26a5b977c6774e6a263d46e0fe5d6738fdfd9cf0cd7de6dc99b1",
+    "src/asterstore/metadata/__init__.py": "a5529384def88e3939e43bd5e687066690c62621ca1640962706739a98c79388",
+    "src/asterstore/metadata/capabilities/__init__.py": "f2b80bc95d8812ae3d59ee53fbaee14c393f3fd4bc5cd6b9cd626c9cf406368c",
+    "src/asterstore/metadata/capabilities/_models.py": "88df23865bce9f9b43eff75f6f9456db1dc000f2158c84a272bed6cdcf150e92",
+    "src/asterstore/metadata/declarations/__init__.py": "ef2dd23d61c7c33b02cce4050d088a26d7b75f87c7b6ca4b5082efb3a7fd443d",
+    "src/asterstore/metadata/declarations/_models.py": "4ef652383757ff1a17488c960832f31561f408e54d40244e440884701c623e40",
+    "src/asterstore/metadata/identity/__init__.py": "824c9de7a6b9de642e70da87ae0325d8277a54bda618e7f58594c91048699bd4",
+    "src/asterstore/metadata/identity/_validation.py": "04ef6aff41765f4ae349adca0688041ce173eba549fbec2373685a88dfdce4d0",
+    "src/asterstore/metadata/membership/__init__.py": "0de945e62ddf345d16d1225f8858eccff3a43cb2478eb55898b7109bb372273b",
+    "src/asterstore/metadata/membership/_models.py": "f30be035c36e724c5d09a996f3a0eec2bf6b011071687ab7a97906d2df89c0ad",
+    "src/asterstore/metadata/protocol/__init__.py": "c000f63d1104097e82a27ade35b81bca6e7221d31d94d7c6181f246a62e247fa",
+    "src/asterstore/metadata/protocol/_cleanup.py": "5649f5c939b1b3f97763925ce4b48115e819b18ca601c56904f7ea7797b11a5a",
+    "src/asterstore/metadata/protocol/_codec.py": "d070b66043213380e13b462e847e8dc18dd647cf20ea0c1c6f25212b9082a1c2",
+    "src/asterstore/metadata/protocol/_governance.py": "56634650742b9e82d6c41c8093cfd0c2ff552c6c902b120a5ccfc04a08b09756",
+    "src/asterstore/metadata/protocol/_json.py": "b6364d8bc8e948fb407a7abb6ad8bbaaa8af66144477c600a88fef09113f3c6f",
+    "src/asterstore/metadata/protocol/_models.py": "8f52c047b80bbb7fd9e5cfc037a7086e84f72897c973faecac527ae59b1c3e18",
+    "src/asterstore/publishing/__init__.py": "b88a95fb18705a08b2e4878db19ac380d35075786fc8fb17a5ed6197e5cf6192",
+    "src/asterstore/publishing/_candidate.py": "d11f28dfd4cbc55422a11e1c5b4b2b7092f8867e751fea77fe8e321c71833324",
+    "src/asterstore/publishing/_membership.py": "d51ec82c7b93ceafd3859ab5d82354094b329264a32bc64060cff92f2d1ed096",
+    "src/asterstore/publishing/_status.py": "68723a70cd7ef1879b9f171925f3f35b56e00974937f342c47e1053e1fb4b39a",
+    "src/asterstore/publishing/transactions/__init__.py": "a51fe15fbc345b482dddec22adf90d18e0092fca69ef1d70aea1d505495a50b0",
+    "src/asterstore/publishing/transactions/_commit.py": "8cc988af9d6467d67f7e017ce9dc96bfd04744b7960176981694d4c30f48e083",
+    "src/asterstore/reading/__init__.py": "6fd9f5a937bd13d219c124a82c649dca92ed9e233a81f6e96f378a1eb0e28a42",
+    "src/asterstore/reading/_binding.py": "bb30cf6508ee6cd8e3a99465f81b83a0d11382e4754ef528d899f7b03b0a562b",
+    "src/asterstore/reading/_catalog.py": "63ddc8473e8e556cd26f56bcca2753d606c027b0fa12c3248a0a4412f0758ce9",
+    "src/asterstore/reading/_loading.py": "3916e9238b51fba767346ce9e36b9ed9ddb7ea78cbad32cce1e48bd0e25904d5",
+    "src/asterstore/reading/_selection.py": "b8fd38ec35f506b52f3e1fa918dc49293a668ba05456a5cedd080f3ed28a1ddf",
+    "src/asterstore/reading/resources/__init__.py": "168c098d1f0a29d431666350ceba09edba599eb7aeac85c3f3d53fd8658d9318",
+    "src/asterstore/reading/resources/_mapping.py": "d93221482a3e9bffe9bf26b89f337fb4c89e7772e1a765809e3cd0973f805625",
+    "src/asterstore/registration/__init__.py": "c81fd99982d7b2896e4a17b8edcc8208451025152f3b2cdd1d81be22cffe859a",
+    "src/asterstore/registration/_operations.py": "d262c40daa517a428c1fe4bf0bbd3a924c082d1a133dd73ab7f5292cbc99fdb8",
+    "src/asterstore/repository.py": "7d567575d25a07a2a0b654a7d16f4b2a141a4fa29365ad38fbca2fada3b80f22",
+    "src/asterstore/storage/__init__.py": "e6223d1feabbad1c11d7347e5a75971d21f7c9d9b5970ac8e7d6b9922d43cb5b",
+    "src/asterstore/storage/_deletion.py": "5711c9391f263bb56a9dd18f6517e39ec569e4120ba1eb73a7e3db8a69ea41f9",
+    "src/asterstore/storage/_files.py": "564d4441235ca0b4d01aa53a26c9e5bfc0c6092e0e1efb45ee68c9318401a9be",
+    "src/asterstore/storage/_layout.py": "966cdb955767f13e772b596f47e8b78e3027b4ad7aef239d1e616f10a7f828b5",
+    "src/asterstore/storage/_locks.py": "f1bcd10d4d5c363aa81ac5321d44e6d463c85aaafca74905107e3c775829a737",
+    "src/asterstore/storage/registry/__init__.py": "481f02327e40758cb41b6ccf05195fe4a00c3fcb22585927d92f6f898e270339",
+    "src/asterstore/storage/registry/_cleanup.py": "6ed0e9be8de9cbf22af187a774acf38d296a403601fc7aad6c534503e08d22f3",
+    "src/asterstore/storage/registry/_governance.py": "52f77dd3a077deadc1c441be1e90f6740d3520941593812db4397a5fd66d96c7",
+    "src/asterstore/storage/registry/_initialize.py": "e3fc707156a37a1dc985505aea443afe413e5122f0736f53cb527ae068e8e9b7",
+    "src/asterstore/storage/registry/_managed.py": "5414455729436f98b79c2e8ba64d2b59cead7786c58bbb144724c8aa3e921247",
+    "src/asterstore/storage/registry/_records.py": "e00adb198da5bd13a6febf2488f59e6ee1a9d6329ed51fc841f25a57450f307b"
+  },
+  "results": [
+    {
+      "case": {
+        "axis": "history",
+        "datasets": 1,
+        "publications_per_dataset": 100,
+        "references": 0,
+        "completed_collections": 0
+      },
+      "setup_seconds": 1.900637274957262,
+      "before": {
+        "control_files": 703,
+        "control_bytes": 253079,
+        "data_files": 100,
+        "data_bytes": 12800
+      },
+      "open_current": {
+        "seconds": [
+          0.0003687329590320587,
+          0.00034904596395790577,
+          0.00032502796966582537
+        ],
+        "median_seconds": 0.00034904596395790577,
+        "python_peak_bytes": 6657,
+        "probe": {
+          "instrumented_seconds": 0.0006719540106132627,
+          "read_attempts": 2,
+          "successful_reads": 2,
+          "control_bytes_read": 733,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 2
+        }
+      },
+      "cached_selection": {
+        "seconds": [
+          7.579801604151726e-07,
+          5.040783435106277e-07,
+          3.08966264128685e-07
+        ],
+        "median_seconds": 5.040783435106277e-07,
+        "python_peak_bytes": 0,
+        "probe": {
+          "instrumented_seconds": 7.310882210731506e-07,
+          "read_attempts": 0,
+          "successful_reads": 0,
+          "control_bytes_read": 0,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 0
+        }
+      },
+      "inspection": {
+        "seconds": [
+          0.07172442192677408,
+          0.07198740798048675,
+          0.07173515006434172
+        ],
+        "median_seconds": 0.07173515006434172,
+        "python_peak_bytes": 1121904,
+        "probe": {
+          "instrumented_seconds": 0.15966760797891766,
+          "read_attempts": 601,
+          "successful_reads": 601,
+          "control_bytes_read": 253079,
+          "directory_enumerations": 107,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 4.090019501745701e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 601
+        }
+      },
+      "metadata_check": {
+        "seconds": [
+          0.09374304802622646,
+          0.09357581194490194,
+          0.09419921995140612
+        ],
+        "median_seconds": 0.09374304802622646,
+        "python_peak_bytes": 1037873,
+        "probe": {
+          "instrumented_seconds": 0.17972127790562809,
+          "read_attempts": 601,
+          "successful_reads": 601,
+          "control_bytes_read": 253079,
+          "directory_enumerations": 107,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 5.181063897907734e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 601
+        }
+      },
+      "preview_before": {
+        "seconds": [
+          0.07097937900107354,
+          0.0724163199774921,
+          0.0455024850089103
+        ],
+        "median_seconds": 0.07097937900107354,
+        "python_peak_bytes": 1134445,
+        "probe": {
+          "instrumented_seconds": 0.10342015593778342,
+          "read_attempts": 602,
+          "successful_reads": 602,
+          "control_bytes_read": 253250,
+          "directory_enumerations": 107,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 2.1560117602348328e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.10278001590631902,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 601
+        }
+      },
+      "retain": {
+        "instrumented_seconds": 0.004198284004814923,
+        "read_attempts": 6,
+        "successful_reads": 4,
+        "control_bytes_read": 1466,
+        "directory_enumerations": 0,
+        "fsync_calls": 10,
+        "fsync_seconds": 0.0027822101255878806,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.895008608698845e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "release": {
+        "instrumented_seconds": 0.0015886439941823483,
+        "read_attempts": 3,
+        "successful_reads": 3,
+        "control_bytes_read": 523,
+        "directory_enumerations": 0,
+        "fsync_calls": 3,
+        "fsync_seconds": 0.0006637058686465025,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 2.74099875241518e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "collect": {
+        "instrumented_seconds": 0.2883334340294823,
+        "read_attempts": 605,
+        "successful_reads": 603,
+        "control_bytes_read": 253432,
+        "directory_enumerations": 108,
+        "fsync_calls": 1140,
+        "fsync_seconds": 0.11897425656206906,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 2.088025212287903e-06,
+        "deletion_calls": 99,
+        "inventory_seconds": 0.09609528700821102,
+        "control_sync_seconds": 0.04834664997179061,
+        "deletion_seconds": 0.03319581993855536,
+        "unique_control_read_paths": 602
+      },
+      "completed_retry": {
+        "instrumented_seconds": 0.07234199799131602,
+        "read_attempts": 204,
+        "successful_reads": 204,
+        "control_bytes_read": 298505,
+        "directory_enumerations": 2,
+        "fsync_calls": 8,
+        "fsync_seconds": 0.0006914190016686916,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.8649734556674957e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0008994390955194831,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 201
+      },
+      "collection_status": {
+        "seconds": [
+          0.012007212964817882,
+          0.012034790008328855,
+          0.01296501699835062
+        ],
+        "median_seconds": 0.012034790008328855,
+        "python_peak_bytes": 551817,
+        "probe": {
+          "instrumented_seconds": 0.011558145983144641,
+          "read_attempts": 3,
+          "successful_reads": 3,
+          "control_bytes_read": 100371,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.5510013327002525e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 3
+        }
+      },
+      "preview_after": {
+        "seconds": [
+          0.06835810199845582,
+          0.0670366269769147,
+          0.0693852660479024
+        ],
+        "median_seconds": 0.06835810199845582,
+        "python_peak_bytes": 1690077,
+        "probe": {
+          "instrumented_seconds": 0.13142405403777957,
+          "read_attempts": 704,
+          "successful_reads": 704,
+          "control_bytes_read": 418438,
+          "directory_enumerations": 112,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.7649726942181587e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.13065277296118438,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 703
+        }
+      },
+      "after": {
+        "control_files": 805,
+        "control_bytes": 418267,
+        "data_files": 1,
+        "data_bytes": 128
+      },
+      "deleted_objects": 99,
+      "post_collect_reference_records": 1,
+      "post_collect_completed_plans": 1
+    },
+    {
+      "case": {
+        "axis": "history",
+        "datasets": 1,
+        "publications_per_dataset": 1000,
+        "references": 0,
+        "completed_collections": 0
+      },
+      "setup_seconds": 14.858824203023687,
+      "before": {
+        "control_files": 7003,
+        "control_bytes": 2548983,
+        "data_files": 1000,
+        "data_bytes": 128000
+      },
+      "open_current": {
+        "seconds": [
+          0.0003611579304561019,
+          0.00033793901093304157,
+          0.0003331839106976986
+        ],
+        "median_seconds": 0.00033793901093304157,
+        "python_peak_bytes": 6870,
+        "probe": {
+          "instrumented_seconds": 0.0007102049421519041,
+          "read_attempts": 2,
+          "successful_reads": 2,
+          "control_bytes_read": 737,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 2
+        }
+      },
+      "cached_selection": {
+        "seconds": [
+          5.579786375164986e-07,
+          3.7800054997205734e-07,
+          3.230525180697441e-07
+        ],
+        "median_seconds": 3.7800054997205734e-07,
+        "python_peak_bytes": 0,
+        "probe": {
+          "instrumented_seconds": 4.878966137766838e-07,
+          "read_attempts": 0,
+          "successful_reads": 0,
+          "control_bytes_read": 0,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 0
+        }
+      },
+      "inspection": {
+        "seconds": [
+          0.7653423160081729,
+          0.7424636939540505,
+          0.7650943940971047
+        ],
+        "median_seconds": 0.7650943940971047,
+        "python_peak_bytes": 12852256,
+        "probe": {
+          "instrumented_seconds": 1.1600476540625095,
+          "read_attempts": 6001,
+          "successful_reads": 6001,
+          "control_bytes_read": 2548983,
+          "directory_enumerations": 1007,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 4.407018423080444e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 6001
+        }
+      },
+      "metadata_check": {
+        "seconds": [
+          0.5864167589461431,
+          0.5921131410868838,
+          0.5907777739921585
+        ],
+        "median_seconds": 0.5907777739921585,
+        "python_peak_bytes": 11018803,
+        "probe": {
+          "instrumented_seconds": 1.1109062770847231,
+          "read_attempts": 6001,
+          "successful_reads": 6001,
+          "control_bytes_read": 2548983,
+          "directory_enumerations": 1007,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 2.244953066110611e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 6001
+        }
+      },
+      "preview_before": {
+        "seconds": [
+          0.4897244790336117,
+          0.4542283311020583,
+          0.4576672640396282
+        ],
+        "median_seconds": 0.4576672640396282,
+        "python_peak_bytes": 11894733,
+        "probe": {
+          "instrumented_seconds": 0.983495888998732,
+          "read_attempts": 6002,
+          "successful_reads": 6002,
+          "control_bytes_read": 2549154,
+          "directory_enumerations": 1007,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 2.326909452676773e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.9786900141043589,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 6001
+        }
+      },
+      "retain": {
+        "instrumented_seconds": 0.004641082021407783,
+        "read_attempts": 6,
+        "successful_reads": 4,
+        "control_bytes_read": 1474,
+        "directory_enumerations": 0,
+        "fsync_calls": 10,
+        "fsync_seconds": 0.003182373009622097,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 2.4730106815695763e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "release": {
+        "instrumented_seconds": 0.0027090429794043303,
+        "read_attempts": 3,
+        "successful_reads": 3,
+        "control_bytes_read": 524,
+        "directory_enumerations": 0,
+        "fsync_calls": 3,
+        "fsync_seconds": 0.001981332083232701,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.7009442672133446e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "collect": {
+        "instrumented_seconds": 5.3880617750110105,
+        "read_attempts": 6005,
+        "successful_reads": 6003,
+        "control_bytes_read": 2549337,
+        "directory_enumerations": 1008,
+        "fsync_calls": 11049,
+        "fsync_seconds": 2.8833581276703626,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.5979167073965073e-06,
+        "deletion_calls": 999,
+        "inventory_seconds": 1.0227523320354521,
+        "control_sync_seconds": 0.5919288139557466,
+        "deletion_seconds": 0.8984307390637696,
+        "unique_control_read_paths": 6002
+      },
+      "completed_retry": {
+        "instrumented_seconds": 1.194149849936366,
+        "read_attempts": 2004,
+        "successful_reads": 2004,
+        "control_bytes_read": 3020991,
+        "directory_enumerations": 2,
+        "fsync_calls": 8,
+        "fsync_seconds": 0.0026924420380964875,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 4.4299522414803505e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.003171468968503177,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2001
+      },
+      "collection_status": {
+        "seconds": [
+          0.1881606460083276,
+          0.20242774998769164,
+          0.1891309549100697
+        ],
+        "median_seconds": 0.1891309549100697,
+        "python_peak_bytes": 5539507,
+        "probe": {
+          "instrumented_seconds": 0.18745186901651323,
+          "read_attempts": 3,
+          "successful_reads": 3,
+          "control_bytes_read": 1014766,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 4.491070285439491e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 3
+        }
+      },
+      "preview_after": {
+        "seconds": [
+          0.7100592629285529,
+          0.7264431080548093,
+          0.7101659820182249
+        ],
+        "median_seconds": 0.7101659820182249,
+        "python_peak_bytes": 17936014,
+        "probe": {
+          "instrumented_seconds": 1.3395282980054617,
+          "read_attempts": 7004,
+          "successful_reads": 7004,
+          "control_bytes_read": 4221835,
+          "directory_enumerations": 1012,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.6499543562531471e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 1.3327305490383878,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 7003
+        }
+      },
+      "after": {
+        "control_files": 8005,
+        "control_bytes": 4221664,
+        "data_files": 1,
+        "data_bytes": 128
+      },
+      "deleted_objects": 999,
+      "post_collect_reference_records": 1,
+      "post_collect_completed_plans": 1
+    },
+    {
+      "case": {
+        "axis": "datasets",
+        "datasets": 32,
+        "publications_per_dataset": 1,
+        "references": 0,
+        "completed_collections": 0
+      },
+      "setup_seconds": 0.41256178403273225,
+      "before": {
+        "control_files": 227,
+        "control_bytes": 80765,
+        "data_files": 32,
+        "data_bytes": 4096
+      },
+      "open_current": {
+        "seconds": [
+          0.00035550398752093315,
+          0.0003373810322955251,
+          0.0003162360517308116
+        ],
+        "median_seconds": 0.0003373810322955251,
+        "python_peak_bytes": 6665,
+        "probe": {
+          "instrumented_seconds": 0.0006565309595316648,
+          "read_attempts": 2,
+          "successful_reads": 2,
+          "control_bytes_read": 728,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 2
+        }
+      },
+      "cached_selection": {
+        "seconds": [
+          6.690388545393944e-07,
+          3.939494490623474e-07,
+          2.200249582529068e-07
+        ],
+        "median_seconds": 3.939494490623474e-07,
+        "python_peak_bytes": 0,
+        "probe": {
+          "instrumented_seconds": 4.7404319047927856e-07,
+          "read_attempts": 0,
+          "successful_reads": 0,
+          "control_bytes_read": 0,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 0
+        }
+      },
+      "inspection": {
+        "seconds": [
+          0.025076625985093415,
+          0.024954561959020793,
+          0.025112604955211282
+        ],
+        "median_seconds": 0.025076625985093415,
+        "python_peak_bytes": 354841,
+        "probe": {
+          "instrumented_seconds": 0.053038095007650554,
+          "read_attempts": 193,
+          "successful_reads": 193,
+          "control_bytes_read": 80765,
+          "directory_enumerations": 69,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 2.926914021372795e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 193
+        }
+      },
+      "metadata_check": {
+        "seconds": [
+          0.03578816901426762,
+          0.036466447985731065,
+          0.03668274194933474
+        ],
+        "median_seconds": 0.036466447985731065,
+        "python_peak_bytes": 349839,
+        "probe": {
+          "instrumented_seconds": 0.06401136994827539,
+          "read_attempts": 193,
+          "successful_reads": 193,
+          "control_bytes_read": 80765,
+          "directory_enumerations": 69,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 3.6209821701049805e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 193
+        }
+      },
+      "preview_before": {
+        "seconds": [
+          0.024910512031055987,
+          0.024958197958767414,
+          0.025098156067542732
+        ],
+        "median_seconds": 0.024958197958767414,
+        "python_peak_bytes": 356807,
+        "probe": {
+          "instrumented_seconds": 0.053673443966545165,
+          "read_attempts": 194,
+          "successful_reads": 194,
+          "control_bytes_read": 80936,
+          "directory_enumerations": 69,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 3.343098796904087e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.05291327100712806,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 193
+        }
+      },
+      "retain": {
+        "instrumented_seconds": 0.00894843100104481,
+        "read_attempts": 6,
+        "successful_reads": 4,
+        "control_bytes_read": 1456,
+        "directory_enumerations": 0,
+        "fsync_calls": 10,
+        "fsync_seconds": 0.006497294059954584,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 3.025052137672901e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "release": {
+        "instrumented_seconds": 0.0038548680022358894,
+        "read_attempts": 3,
+        "successful_reads": 3,
+        "control_bytes_read": 522,
+        "directory_enumerations": 0,
+        "fsync_calls": 3,
+        "fsync_seconds": 0.002549080061726272,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 2.9280781745910645e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "collect": {
+        "instrumented_seconds": 0.057556341984309256,
+        "read_attempts": 197,
+        "successful_reads": 195,
+        "control_bytes_read": 81117,
+        "directory_enumerations": 70,
+        "fsync_calls": 276,
+        "fsync_seconds": 0.009843735839240253,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 3.729015588760376e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.03592267003841698,
+        "control_sync_seconds": 0.017273505916818976,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 194
+      },
+      "completed_retry": {
+        "instrumented_seconds": 0.002338649006560445,
+        "read_attempts": 6,
+        "successful_reads": 6,
+        "control_bytes_read": 888,
+        "directory_enumerations": 2,
+        "fsync_calls": 8,
+        "fsync_seconds": 0.00083965586964041,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 2.2979220375418663e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0010448559187352657,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 3
+      },
+      "collection_status": {
+        "seconds": [
+          0.0002667789813131094,
+          0.0002593670506030321,
+          0.00026036298368126154
+        ],
+        "median_seconds": 0.00026036298368126154,
+        "python_peak_bytes": 9149,
+        "probe": {
+          "instrumented_seconds": 0.00054762396030128,
+          "read_attempts": 3,
+          "successful_reads": 3,
+          "control_bytes_read": 444,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.2950040400028229e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 3
+        }
+      },
+      "preview_after": {
+        "seconds": [
+          0.01519656099844724,
+          0.015690337982960045,
+          0.01689520408399403
+        ],
+        "median_seconds": 0.015690337982960045,
+        "python_peak_bytes": 362601,
+        "probe": {
+          "instrumented_seconds": 0.032332964008674026,
+          "read_attempts": 197,
+          "successful_reads": 197,
+          "control_bytes_read": 81390,
+          "directory_enumerations": 72,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.9819708541035652e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.03189647290855646,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 196
+        }
+      },
+      "after": {
+        "control_files": 230,
+        "control_bytes": 81219,
+        "data_files": 32,
+        "data_bytes": 4096
+      },
+      "deleted_objects": 0,
+      "post_collect_reference_records": 1,
+      "post_collect_completed_plans": 1
+    },
+    {
+      "case": {
+        "axis": "references",
+        "datasets": 1,
+        "publications_per_dataset": 3,
+        "references": 128,
+        "completed_collections": 0
+      },
+      "setup_seconds": 0.23233505198732018,
+      "before": {
+        "control_files": 152,
+        "control_bytes": 30314,
+        "data_files": 3,
+        "data_bytes": 384
+      },
+      "open_current": {
+        "seconds": [
+          0.00020299793686717749,
+          0.00019547296687960625,
+          0.00018698489293456078
+        ],
+        "median_seconds": 0.00019547296687960625,
+        "python_peak_bytes": 6662,
+        "probe": {
+          "instrumented_seconds": 0.00040355499368160963,
+          "read_attempts": 2,
+          "successful_reads": 2,
+          "control_bytes_read": 728,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 2
+        }
+      },
+      "cached_selection": {
+        "seconds": [
+          2.878950908780098e-07,
+          2.430751919746399e-07,
+          1.5099067240953445e-07
+        ],
+        "median_seconds": 2.430751919746399e-07,
+        "python_peak_bytes": 0,
+        "probe": {
+          "instrumented_seconds": 2.6996713131666183e-07,
+          "read_attempts": 0,
+          "successful_reads": 0,
+          "control_bytes_read": 0,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 0
+        }
+      },
+      "inspection": {
+        "seconds": [
+          0.008360824896954,
+          0.008399780956096947,
+          0.010024102055467665
+        ],
+        "median_seconds": 0.008399780956096947,
+        "python_peak_bytes": 271140,
+        "probe": {
+          "instrumented_seconds": 0.020783853018656373,
+          "read_attempts": 147,
+          "successful_reads": 147,
+          "control_bytes_read": 30314,
+          "directory_enumerations": 11,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.8919818103313446e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 147
+        }
+      },
+      "metadata_check": {
+        "seconds": [
+          0.0104881840525195,
+          0.010456343996338546,
+          0.010541983065195382
+        ],
+        "median_seconds": 0.0104881840525195,
+        "python_peak_bytes": 367590,
+        "probe": {
+          "instrumented_seconds": 0.0251874829409644,
+          "read_attempts": 147,
+          "successful_reads": 147,
+          "control_bytes_read": 30314,
+          "directory_enumerations": 11,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.7080456018447876e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 147
+        }
+      },
+      "preview_before": {
+        "seconds": [
+          0.008173891925252974,
+          0.00813334307167679,
+          0.008195839007385075
+        ],
+        "median_seconds": 0.008173891925252974,
+        "python_peak_bytes": 275952,
+        "probe": {
+          "instrumented_seconds": 0.02305569197051227,
+          "read_attempts": 148,
+          "successful_reads": 148,
+          "control_bytes_read": 30485,
+          "directory_enumerations": 11,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.6959384083747864e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.022682759095914662,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 147
+        }
+      },
+      "retain": {
+        "instrumented_seconds": 0.0036939450073987246,
+        "read_attempts": 6,
+        "successful_reads": 4,
+        "control_bytes_read": 1456,
+        "directory_enumerations": 0,
+        "fsync_calls": 10,
+        "fsync_seconds": 0.002487033139914274,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.567997969686985e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "release": {
+        "instrumented_seconds": 0.0019236250082030892,
+        "read_attempts": 3,
+        "successful_reads": 3,
+        "control_bytes_read": 522,
+        "directory_enumerations": 0,
+        "fsync_calls": 3,
+        "fsync_seconds": 0.0012737930519506335,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.5789410099387169e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "collect": {
+        "instrumented_seconds": 0.03714125300757587,
+        "read_attempts": 151,
+        "successful_reads": 149,
+        "control_bytes_read": 30666,
+        "directory_enumerations": 11,
+        "fsync_calls": 179,
+        "fsync_seconds": 0.008834506385028362,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.6690464690327644e-06,
+        "deletion_calls": 1,
+        "inventory_seconds": 0.01996868196874857,
+        "control_sync_seconds": 0.011027980013750494,
+        "deletion_seconds": 0.00041721295565366745,
+        "unique_control_read_paths": 148
+      },
+      "completed_retry": {
+        "instrumented_seconds": 0.0024279080098494887,
+        "read_attempts": 8,
+        "successful_reads": 8,
+        "control_bytes_read": 3871,
+        "directory_enumerations": 2,
+        "fsync_calls": 8,
+        "fsync_seconds": 0.00022811780218034983,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.8900027498602867e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0004341809544712305,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 5
+      },
+      "collection_status": {
+        "seconds": [
+          0.000442662974819541,
+          0.0004191820044070482,
+          0.00040693103801459074
+        ],
+        "median_seconds": 0.0004191820044070482,
+        "python_peak_bytes": 14485,
+        "probe": {
+          "instrumented_seconds": 0.0007209799950942397,
+          "read_attempts": 3,
+          "successful_reads": 3,
+          "control_bytes_read": 1444,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.3390090316534042e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 3
+        }
+      },
+      "preview_after": {
+        "seconds": [
+          0.008726891013793647,
+          0.008766619954258204,
+          0.008713729912415147
+        ],
+        "median_seconds": 0.008726891013793647,
+        "python_peak_bytes": 285424,
+        "probe": {
+          "instrumented_seconds": 0.021104609011672437,
+          "read_attempts": 152,
+          "successful_reads": 152,
+          "control_bytes_read": 32590,
+          "directory_enumerations": 15,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.5620607882738113e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.020722266053780913,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 151
+        }
+      },
+      "after": {
+        "control_files": 156,
+        "control_bytes": 32419,
+        "data_files": 2,
+        "data_bytes": 256
+      },
+      "deleted_objects": 1,
+      "post_collect_reference_records": 129,
+      "post_collect_completed_plans": 1
+    },
+    {
+      "case": {
+        "axis": "logs",
+        "datasets": 1,
+        "publications_per_dataset": 1,
+        "references": 0,
+        "completed_collections": 100
+      },
+      "setup_seconds": 2.1548816000577062,
+      "before": {
+        "control_files": 210,
+        "control_bytes": 29362,
+        "data_files": 1,
+        "data_bytes": 128
+      },
+      "open_current": {
+        "seconds": [
+          0.000210257014259696,
+          0.00019070098642259836,
+          0.00018402095884084702
+        ],
+        "median_seconds": 0.00019070098642259836,
+        "python_peak_bytes": 6657,
+        "probe": {
+          "instrumented_seconds": 0.0003863389138132334,
+          "read_attempts": 2,
+          "successful_reads": 2,
+          "control_bytes_read": 728,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 2
+        }
+      },
+      "cached_selection": {
+        "seconds": [
+          3.440072759985924e-07,
+          2.3795291781425476e-07,
+          1.3993121683597565e-07
+        ],
+        "median_seconds": 2.3795291781425476e-07,
+        "python_peak_bytes": 0,
+        "probe": {
+          "instrumented_seconds": 2.8405338525772095e-07,
+          "read_attempts": 0,
+          "successful_reads": 0,
+          "control_bytes_read": 0,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 0
+        }
+      },
+      "inspection": {
+        "seconds": [
+          0.01410916494205594,
+          0.016436713049188256,
+          0.014155971002765
+        ],
+        "median_seconds": 0.014155971002765,
+        "python_peak_bytes": 349250,
+        "probe": {
+          "instrumented_seconds": 0.032201503054238856,
+          "read_attempts": 207,
+          "successful_reads": 207,
+          "control_bytes_read": 29362,
+          "directory_enumerations": 108,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.6039703041315079e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 207
+        }
+      },
+      "metadata_check": {
+        "seconds": [
+          0.02295117697212845,
+          0.022884052945300937,
+          0.02587105194106698
+        ],
+        "median_seconds": 0.02295117697212845,
+        "python_peak_bytes": 380704,
+        "probe": {
+          "instrumented_seconds": 0.04064285603817552,
+          "read_attempts": 207,
+          "successful_reads": 207,
+          "control_bytes_read": 29362,
+          "directory_enumerations": 108,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.918058842420578e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 207
+        }
+      },
+      "preview_before": {
+        "seconds": [
+          0.014027000055648386,
+          0.014546173042617738,
+          0.01583406701683998
+        ],
+        "median_seconds": 0.014546173042617738,
+        "python_peak_bytes": 354575,
+        "probe": {
+          "instrumented_seconds": 0.03239503095392138,
+          "read_attempts": 208,
+          "successful_reads": 208,
+          "control_bytes_read": 29533,
+          "directory_enumerations": 108,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.6910489648580551e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.03201684704981744,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 207
+        }
+      },
+      "retain": {
+        "instrumented_seconds": 0.004228400066494942,
+        "read_attempts": 6,
+        "successful_reads": 4,
+        "control_bytes_read": 1456,
+        "directory_enumerations": 0,
+        "fsync_calls": 10,
+        "fsync_seconds": 0.0029348020907491446,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.7279526218771935e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "release": {
+        "instrumented_seconds": 0.0022039569448679686,
+        "read_attempts": 3,
+        "successful_reads": 3,
+        "control_bytes_read": 522,
+        "directory_enumerations": 0,
+        "fsync_calls": 3,
+        "fsync_seconds": 0.0015045328764244914,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.7510028555989265e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "collect": {
+        "instrumented_seconds": 0.057443407946266234,
+        "read_attempts": 211,
+        "successful_reads": 209,
+        "control_bytes_read": 29714,
+        "directory_enumerations": 109,
+        "fsync_calls": 327,
+        "fsync_seconds": 0.012995057157240808,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.6050180420279503e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0321169919334352,
+        "control_sync_seconds": 0.021067875903099775,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 208
+      },
+      "completed_retry": {
+        "instrumented_seconds": 0.0015948410145938396,
+        "read_attempts": 6,
+        "successful_reads": 6,
+        "control_bytes_read": 888,
+        "directory_enumerations": 2,
+        "fsync_calls": 8,
+        "fsync_seconds": 0.0002540010027587414,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 1.8209684640169144e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0004568209405988455,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 3
+      },
+      "collection_status": {
+        "seconds": [
+          0.0002710850676521659,
+          0.00026043597608804703,
+          0.0002557199914008379
+        ],
+        "median_seconds": 0.00026043597608804703,
+        "python_peak_bytes": 9244,
+        "probe": {
+          "instrumented_seconds": 0.0005462580593302846,
+          "read_attempts": 3,
+          "successful_reads": 3,
+          "control_bytes_read": 444,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.2619420886039734e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 3
+        }
+      },
+      "preview_after": {
+        "seconds": [
+          0.014712908072397113,
+          0.0146362449740991,
+          0.014248474035412073
+        ],
+        "median_seconds": 0.0146362449740991,
+        "python_peak_bytes": 359705,
+        "probe": {
+          "instrumented_seconds": 0.032812286051921546,
+          "read_attempts": 211,
+          "successful_reads": 211,
+          "control_bytes_read": 29987,
+          "directory_enumerations": 110,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.7139827832579613e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0324266420211643,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 210
+        }
+      },
+      "after": {
+        "control_files": 213,
+        "control_bytes": 29816,
+        "data_files": 1,
+        "data_bytes": 128
+      },
+      "deleted_objects": 0,
+      "post_collect_reference_records": 1,
+      "post_collect_completed_plans": 101
+    },
+    {
+      "case": {
+        "axis": "mixed",
+        "datasets": 32,
+        "publications_per_dataset": 100,
+        "references": 0,
+        "completed_collections": 0
+      },
+      "setup_seconds": 49.45655339502264,
+      "before": {
+        "control_files": 22403,
+        "control_bytes": 8117427,
+        "data_files": 3200,
+        "data_bytes": 409600
+      },
+      "open_current": {
+        "seconds": [
+          0.0003531529800966382,
+          0.00032757793087512255,
+          0.0003183030057698488
+        ],
+        "median_seconds": 0.00032757793087512255,
+        "python_peak_bytes": 6442,
+        "probe": {
+          "instrumented_seconds": 0.0006993439747020602,
+          "read_attempts": 2,
+          "successful_reads": 2,
+          "control_bytes_read": 733,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 2
+        }
+      },
+      "cached_selection": {
+        "seconds": [
+          6.780028343200684e-07,
+          3.8603320717811584e-07,
+          2.5401823222637177e-07
+        ],
+        "median_seconds": 3.8603320717811584e-07,
+        "python_peak_bytes": 0,
+        "probe": {
+          "instrumented_seconds": 3.819586709141731e-07,
+          "read_attempts": 0,
+          "successful_reads": 0,
+          "control_bytes_read": 0,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 0,
+          "lock_acquire_seconds": 0.0,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 0
+        }
+      },
+      "inspection": {
+        "seconds": [
+          1.5044873890001327,
+          1.494562958017923,
+          1.5108186370925978
+        ],
+        "median_seconds": 1.5044873890001327,
+        "python_peak_bytes": 37272949,
+        "probe": {
+          "instrumented_seconds": 3.1975005120038986,
+          "read_attempts": 19201,
+          "successful_reads": 19201,
+          "control_bytes_read": 8117427,
+          "directory_enumerations": 3269,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 2.3259781301021576e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 19201
+        }
+      },
+      "metadata_check": {
+        "seconds": [
+          1.951115261996165,
+          1.9277281039394438,
+          1.9286378929391503
+        ],
+        "median_seconds": 1.9286378929391503,
+        "python_peak_bytes": 33903728,
+        "probe": {
+          "instrumented_seconds": 3.7038849090458825,
+          "read_attempts": 19201,
+          "successful_reads": 19201,
+          "control_bytes_read": 8117427,
+          "directory_enumerations": 3269,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 2.584070898592472e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 19201
+        }
+      },
+      "preview_before": {
+        "seconds": [
+          1.465241259895265,
+          1.4515556779224426,
+          1.4637376449536532
+        ],
+        "median_seconds": 1.4637376449536532,
+        "python_peak_bytes": 37345545,
+        "probe": {
+          "instrumented_seconds": 3.2026453010039404,
+          "read_attempts": 19202,
+          "successful_reads": 19202,
+          "control_bytes_read": 8117598,
+          "directory_enumerations": 3269,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 2.9209768399596214e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 3.1858930949820206,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 19201
+        }
+      },
+      "retain": {
+        "instrumented_seconds": 0.004414311028085649,
+        "read_attempts": 6,
+        "successful_reads": 4,
+        "control_bytes_read": 1466,
+        "directory_enumerations": 0,
+        "fsync_calls": 10,
+        "fsync_seconds": 0.0029324388597160578,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 2.739951014518738e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "release": {
+        "instrumented_seconds": 0.0018446720205247402,
+        "read_attempts": 3,
+        "successful_reads": 3,
+        "control_bytes_read": 523,
+        "directory_enumerations": 0,
+        "fsync_calls": 3,
+        "fsync_seconds": 0.0008501020492985845,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 2.2759195417165756e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.0,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 2
+      },
+      "collect": {
+        "instrumented_seconds": 15.327048906008713,
+        "read_attempts": 19205,
+        "successful_reads": 19203,
+        "control_bytes_read": 8117780,
+        "directory_enumerations": 3270,
+        "fsync_calls": 35193,
+        "fsync_seconds": 6.949024328147061,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 2.1209707483649254e-06,
+        "deletion_calls": 3168,
+        "inventory_seconds": 3.147301960038021,
+        "control_sync_seconds": 1.8114164170110598,
+        "deletion_seconds": 1.6134070695843548,
+        "unique_control_read_paths": 19202
+      },
+      "completed_retry": {
+        "instrumented_seconds": 3.0057706440566108,
+        "read_attempts": 6342,
+        "successful_reads": 6342,
+        "control_bytes_read": 9548838,
+        "directory_enumerations": 2,
+        "fsync_calls": 8,
+        "fsync_seconds": 0.004152368288487196,
+        "lock_acquisitions": 1,
+        "lock_acquire_seconds": 5.415990017354488e-06,
+        "deletion_calls": 0,
+        "inventory_seconds": 0.0,
+        "control_sync_seconds": 0.004626510082744062,
+        "deletion_seconds": 0.0,
+        "unique_control_read_paths": 6339
+      },
+      "collection_status": {
+        "seconds": [
+          0.3676697800401598,
+          0.36783092794939876,
+          0.3690795700531453
+        ],
+        "median_seconds": 0.36783092794939876,
+        "python_peak_bytes": 17699165,
+        "probe": {
+          "instrumented_seconds": 0.3947970230365172,
+          "read_attempts": 3,
+          "successful_reads": 3,
+          "control_bytes_read": 3206944,
+          "directory_enumerations": 0,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 2.3569446057081223e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 0.0,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 3
+        }
+      },
+      "preview_after": {
+        "seconds": [
+          2.2894135740352795,
+          2.336282598087564,
+          2.3244742259848863
+        ],
+        "median_seconds": 2.3244742259848863,
+        "python_peak_bytes": 58216299,
+        "probe": {
+          "instrumented_seconds": 4.388654655078426,
+          "read_attempts": 22373,
+          "successful_reads": 22373,
+          "control_bytes_read": 13402701,
+          "directory_enumerations": 3305,
+          "fsync_calls": 0,
+          "fsync_seconds": 0.0,
+          "lock_acquisitions": 1,
+          "lock_acquire_seconds": 1.969980075955391e-06,
+          "deletion_calls": 0,
+          "inventory_seconds": 4.365418839966878,
+          "control_sync_seconds": 0.0,
+          "deletion_seconds": 0.0,
+          "unique_control_read_paths": 22372
+        }
+      },
+      "after": {
+        "control_files": 25574,
+        "control_bytes": 13402530,
+        "data_files": 32,
+        "data_bytes": 4096
+      },
+      "deleted_objects": 3168,
+      "post_collect_reference_records": 1,
+      "post_collect_completed_plans": 1
+    }
+  ]
+}

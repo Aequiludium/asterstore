@@ -1,6 +1,6 @@
 """governance facade. Service construction has no I/O."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,16 +16,47 @@ from asterstore.storage.registry import (
     read_managed_request,
 )
 
-from . import _references
+from . import _references, inspection
 from . import cleanup as _cleanup
 from ._abandonment import sync_candidate_evidence
 from ._collection import GovernancePreview, GovernanceResult, collect, preview
 from .cleanup import CleanupPreview, CleanupResult
+from .inspection import CheckLevel, CheckReport, GovernanceSnapshot, MaintenanceStatus
+from .inspection._queries import maintenance_status
 
 
 @dataclass(frozen=True, slots=True)
 class Governance:
     root: Path
+
+    def inspect(self) -> GovernanceSnapshot:
+        """Read a coordinated control inventory; fail promptly if a writer holds the lock."""
+        return inspection.inspect(self.root)
+
+    def collection_status(self, operation_id: str) -> MaintenanceStatus:
+        """Read one fixed collection plan and its progress, without a store inventory."""
+        return maintenance_status(self.root, operation_id, "collection")
+
+    def cleanup_status(self, operation_id: str) -> MaintenanceStatus:
+        """Read one abandoned candidate's cleanup plan and progress."""
+        return maintenance_status(self.root, operation_id, "cleanup")
+
+    def check(
+        self,
+        *,
+        level: CheckLevel = "metadata",
+        resources: Mapping[str, str | Path] | None = None,
+        validator: Callable[[Path], None] | None = None,
+        checksums: Mapping[str, str] | None = None,
+    ) -> CheckReport:
+        """Explicit validation; never create control files, repair, or grant deletion rights."""
+        return inspection.check(
+            self.root,
+            level=level,
+            resources=resources,
+            validator=validator,
+            checksums=checksums,
+        )
 
     def retain(
         self,

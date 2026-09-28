@@ -5,7 +5,11 @@ from pathlib import Path
 from typing import Literal
 
 from asterstore.errors import PublicationNotFoundError, StoreCorruptionError
-from asterstore.metadata.protocol import decode_declaration_record
+from asterstore.metadata.protocol import (
+    DeclarationRecord,
+    ManagedRequest,
+    decode_declaration_record,
+)
 from asterstore.storage import file_lock
 from asterstore.storage.registry import (
     find_record,
@@ -56,36 +60,56 @@ def candidate_status(root: Path, operation_id: str) -> CandidateStatus:
             raise StoreCorruptionError("candidate seal and request disagree")
         current = read_head(root, store, request.dataset_id)
         committed = find_record(root, store, request.dataset_id, request.publication_id)
-        state: Literal[
-            "writing", "prepared", "conflict", "current", "historical", "retired", "abandoned"
-        ]
-        if committed is not None and committed.operation_id == operation_id:
-            if sealed != committed:
-                raise StoreCorruptionError("committed candidate lacks matching seal")
-            state = (
-                "retired"
-                if read_retired(root, store, committed) is not None
-                else "current"
-                if current == committed
-                else "historical"
-            )
-        elif (
-            committed is not None
-            or (0 if current is None else current.generation) != request.expected_generation
-            or (
-                current is not None
-                and current.declaration.capabilities
-                != request.declaration_record(current.declaration.files).declaration.capabilities
-            )
-        ):
-            state = "conflict"
-        else:
-            state = "writing" if sealed is None else "prepared"
-        return CandidateStatus(
-            operation_id,
-            state,
-            request.store_id,
-            request.dataset_id,
-            request.publication_id,
-            request.expected_generation,
+        return status_from_records(
+            request,
+            current=current,
+            committed=committed,
+            sealed=sealed,
+            abandoned=False,
+            retired=(
+                committed is not None
+                and committed.operation_id == operation_id
+                and read_retired(root, store, committed) is not None
+            ),
         )
+
+
+def status_from_records(
+    request: ManagedRequest,
+    *,
+    current: DeclarationRecord | None,
+    committed: DeclarationRecord | None,
+    sealed: DeclarationRecord | None,
+    abandoned: bool,
+    retired: bool,
+) -> CandidateStatus:
+    """Derive the same state for a single query and a coordinated inventory."""
+    state: Literal[
+        "writing", "prepared", "conflict", "current", "historical", "retired", "abandoned"
+    ]
+    if abandoned:
+        state = "abandoned"
+    elif committed is not None and committed.operation_id == request.operation_id:
+        if sealed != committed:
+            raise StoreCorruptionError("committed candidate lacks matching seal")
+        state = "retired" if retired else "current" if current == committed else "historical"
+    elif (
+        committed is not None
+        or (0 if current is None else current.generation) != request.expected_generation
+        or (
+            current is not None
+            and current.declaration.capabilities
+            != request.declaration_record(current.declaration.files).declaration.capabilities
+        )
+    ):
+        state = "conflict"
+    else:
+        state = "writing" if sealed is None else "prepared"
+    return CandidateStatus(
+        request.operation_id,
+        state,
+        request.store_id,
+        request.dataset_id,
+        request.publication_id,
+        request.expected_generation,
+    )

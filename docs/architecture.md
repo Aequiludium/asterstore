@@ -19,6 +19,7 @@ src/asterstore/
 ├── publishing/          # Candidate、对象创建权属、封存及恢复
 │   └── transactions/    # registered/managed 共用提交生效点
 ├── governance/          # 固定保留、扫描、退役、回收及恢复
+│   ├── inspection/      # 只读状态观察、保护原因与显式检查
 │   └── cleanup/         # 已放弃候选的清理
 ├── storage/             # 锁、精确删除、原子写入与同步
 │   └── registry/        # 控制路径、权威记录读写

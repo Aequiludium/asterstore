@@ -11,11 +11,19 @@ from asterstore.metadata.protocol import (
     DeclarationRecord,
     FixedRetention,
     GovernancePlan,
+    GovernanceProgress,
+    ManagedCleanupPlan,
+    ManagedCleanupProgress,
+    ManagedRequest,
     ObjectRecord,
     RetiredDeclaration,
     StoreRecord,
     decode_declaration_record,
     decode_governance_plan,
+    decode_governance_progress,
+    decode_managed_abandonment,
+    decode_managed_cleanup_plan,
+    decode_managed_cleanup_progress,
     decode_managed_request,
     decode_object_record,
     decode_retention,
@@ -25,15 +33,12 @@ from asterstore.storage.registry import (
     collection_directory,
     object_record_path,
     operation_path,
-    read_abandoned,
-    read_cleanup_plan,
-    read_cleanup_progress,
-    read_governance_progress,
-    read_object_record,
     retention_path,
     retired_path,
     token,
 )
+
+from ._control import ControlReader
 
 PublicationKey = tuple[str, str]
 
@@ -74,35 +79,7 @@ def checked(value: DeclarationRecord, store: StoreRecord) -> DeclarationRecord:
     return value
 
 
-@dataclass(slots=True)
-class Inventory:
-    store: StoreRecord
-    publications: dict[PublicationKey, DeclarationRecord]
-    current: set[PublicationKey]
-    objects: dict[str, ObjectRecord]
-    retired: dict[PublicationKey, RetiredDeclaration]
-    protected_objects: set[str]
-    protected_publications: set[PublicationKey]
-    retained_metadata: set[PublicationKey]
-    plans: dict[str, GovernancePlan]
-    control_paths: set[Path]
-    collected_objects: set[str]
-    object_users: dict[str, set[PublicationKey]]
-    pending_objects: set[str]
-    cleaned_objects: set[str]
-
-
-def inventory(root: Path, store: StoreRecord) -> Inventory:
-    paths = {root / ".asterstore/format.json"}
-    publications: dict[PublicationKey, DeclarationRecord] = {}
-    current: set[PublicationKey] = set()
-    operations: dict[str, DeclarationRecord] = {}
-    objects: dict[str, ObjectRecord] = {}
-    retired: dict[PublicationKey, RetiredDeclaration] = {}
-    refs: list[FixedRetention] = []
-    protected: set[str] = set()
-    object_roots: set[PublicationKey] = set()
-    metadata_roots: set[PublicationKey] = set()
+def check_control_root(root: Path) -> None:
     control = root / ".asterstore"
     allowed = {
         "format.json",
@@ -119,8 +96,52 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
     }
     if {p.name for p in entries(control)} - allowed:
         raise StoreCorruptionError("unknown top-level control record")
+
+
+@dataclass(slots=True)
+class Inventory:
+    store: StoreRecord
+    publications: dict[PublicationKey, DeclarationRecord]
+    current: set[PublicationKey]
+    objects: dict[str, ObjectRecord]
+    retired: dict[PublicationKey, RetiredDeclaration]
+    protected_objects: set[str]
+    protected_publications: set[PublicationKey]
+    retained_metadata: set[PublicationKey]
+    plans: dict[str, GovernancePlan]
+    control_paths: set[Path]
+    collected_objects: set[str]
+    object_users: dict[str, set[PublicationKey]]
+    pending_objects: set[str]
+    cleaned_objects: set[str]
+    requests: dict[str, ManagedRequest]
+    seals: dict[str, DeclarationRecord]
+    abandoned: set[str]
+    references: tuple[FixedRetention, ...]
+    pending_users: dict[str, set[str]]
+    collection_progress: dict[str, GovernanceProgress]
+    cleanup_plans: dict[str, ManagedCleanupPlan]
+    cleanup_progress: dict[str, ManagedCleanupProgress]
+
+
+def inventory(root: Path, store: StoreRecord, *, reader: ControlReader | None = None) -> Inventory:
+    reader = ControlReader() if reader is None else reader
+    read = reader.read
+    paths = reader.paths
+    paths.add(root / ".asterstore/format.json")
+    publications: dict[PublicationKey, DeclarationRecord] = {}
+    current: set[PublicationKey] = set()
+    operations: dict[str, DeclarationRecord] = {}
+    objects: dict[str, ObjectRecord] = {}
+    retired: dict[PublicationKey, RetiredDeclaration] = {}
+    refs: list[FixedRetention] = []
+    protected: set[str] = set()
+    object_roots: set[PublicationKey] = set()
+    metadata_roots: set[PublicationKey] = set()
+    control = root / ".asterstore"
+    check_control_root(root)
     for path in entries(control / "registrations"):
-        value = checked(decode_declaration_record(control_bytes(path, paths)), store)
+        value = checked(read(path, decode_declaration_record), store)
         if path != operation_path(root, value.operation_id):
             raise StoreCorruptionError("operation path identity mismatch")
         operations[value.operation_id] = value
@@ -140,14 +161,14 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
                 # A fixed initial request explains an empty directory, never real history.
                 continue
             raise StoreCorruptionError("dataset is missing current")
-        head = checked(decode_declaration_record(control_bytes(head_path, paths)), store)
+        head = checked(read(head_path, decode_declaration_record), store)
         if directory.name != token(head.declaration.dataset_id):
             raise StoreCorruptionError("dataset path identity mismatch")
         publications[key(head)] = head
         current.add(key(head))
         generations = {head.generation: key(head)}
         for path in entries(directory / "history"):
-            value = checked(decode_declaration_record(control_bytes(path, paths)), store)
+            value = checked(read(path, decode_declaration_record), store)
             if (
                 value.declaration.dataset_id != head.declaration.dataset_id
                 or path.name != token(value.declaration.publication_id) + ".json"
@@ -160,10 +181,15 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
             publications[key(value)] = value
             generations[value.generation] = key(value)
     for path in entries(control / "object-records"):
-        object_record = decode_object_record(control_bytes(path, paths))
+        object_record = read(path, decode_object_record)
         if (
             path != object_record_path(root, object_record.object_id)
-            or read_object_record(root, store, object_record.object_id) != object_record
+            or object_record.store_id != store.store_id
+            or object_record.locator.resource_id not in store.resource_ids
+            or (
+                (object_record.creator_operation_id is not None)
+                != (object_record.locator.resource_id == store.managed_resource_id)
+            )
         ):
             raise StoreCorruptionError("object path identity mismatch")
         objects[object_record.object_id] = object_record
@@ -172,6 +198,9 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
     abandoned = set()
     cleaned_paths: set[str] = set()
     private_cleanups: set[str] = set()
+    pending_users: dict[str, set[str]] = {}
+    cleanup_plans = {}
+    cleanup_states = {}
     committed_operations = {v.operation_id for v in publications.values()}
     for directory in entries(control / "managed-candidates"):
         children = entries(directory)
@@ -190,7 +219,7 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
             if {p.name for p in children} <= {"writer.lock"}:
                 continue
             raise StoreCorruptionError("candidate lacks its request")
-        request = decode_managed_request(control_bytes(directory / "request.json", paths))
+        request = read(directory / "request.json", decode_managed_request)
         if (
             request.store_id != store.store_id
             or directory.name != token(request.operation_id)
@@ -198,9 +227,10 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
         ):
             raise StoreCorruptionError("candidate identity or feature mismatch")
         requests[request.operation_id] = request
-        is_abandoned = read_abandoned(root, store, request.operation_id) is not None
+        is_abandoned = directory / "abandoned.json" in children
         if is_abandoned:
-            control_bytes(directory / "abandoned.json", paths)
+            if read(directory / "abandoned.json", decode_managed_abandonment) != request:
+                raise StoreCorruptionError("abandonment differs from candidate request")
             abandoned.add(request.operation_id)
             if request.operation_id in committed_operations:
                 raise StoreCorruptionError("committed candidate is abandoned")
@@ -210,7 +240,7 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
             path = directory / name
             if path not in children:
                 continue
-            value = checked(decode_declaration_record(control_bytes(path, paths)), store)
+            value = checked(read(path, decode_declaration_record), store)
             if value != request.declaration_record(value.declaration.files):
                 raise StoreCorruptionError("candidate record differs from request")
             if name == "sealed.json":
@@ -226,15 +256,26 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
                         ):
                             raise StoreCorruptionError("pending reuse lacks creator evidence")
                     protected.add(obj.object_id)
-        for name in ("cleanup-plan.json", "cleanup-progress.json"):
-            if directory / name in children:
-                control_bytes(directory / name, paths)
-        cleanup = read_cleanup_plan(root, store, request.operation_id)
+                    pending_users.setdefault(obj.object_id, set()).add(request.operation_id)
+        cleanup = (
+            read(directory / "cleanup-plan.json", decode_managed_cleanup_plan)
+            if directory / "cleanup-plan.json" in children
+            else None
+        )
         if cleanup is None:
             if directory / "cleanup-progress.json" in children:
                 raise StoreCorruptionError("cleanup progress lacks its fixed plan")
         else:
-            cleanup_progress = read_cleanup_progress(root, cleanup)
+            if not is_abandoned or cleanup.request != request:
+                raise StoreCorruptionError("cleanup plan lacks matching abandonment authority")
+            cleanup_progress = (
+                read(directory / "cleanup-progress.json", decode_managed_cleanup_progress)
+                if directory / "cleanup-progress.json" in children
+                else ManagedCleanupProgress(store.store_id, request.operation_id)
+            )
+            cleanup_progress.check_plan(cleanup)
+            cleanup_plans[request.operation_id] = cleanup
+            cleanup_states[request.operation_id] = cleanup_progress
             if cleanup.location == "installed":
                 seal = seals.get(request.operation_id)
                 prefix = token(request.operation_id) + "/"
@@ -298,13 +339,14 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
     plans = {}
     collected: set[str] = set()
     progress_records = []
+    planned_retirements: dict[str, dict[PublicationKey, DeclarationRecord]] = {}
     for directory in entries(control / "collections"):
         children = entries(directory)
         if {p.name for p in children} - {"plan.json", "progress.json"}:
             raise StoreCorruptionError("unknown collection record")
         if not children:
             continue  # A terminated first write may leave an empty plan directory.
-        plan = decode_governance_plan(control_bytes(directory / "plan.json", paths))
+        plan = read(directory / "plan.json", decode_governance_plan)
         if plan.store_id != store.store_id or directory != collection_directory(
             root, plan.operation_id
         ):
@@ -313,15 +355,20 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
             objects.get(o.object_id) != o for o in plan.objects
         ):
             raise StoreCorruptionError("collection plan conflicts with authority records")
-        progress = read_governance_progress(root, plan)
+        progress = (
+            read(directory / "progress.json", decode_governance_progress)
+            if directory / "progress.json" in children
+            else GovernanceProgress(store.store_id, plan.operation_id)
+        )
+        progress.check_plan(plan)
         progress_records.append(progress)
         collected.update(oid for oid, outcome in progress.outcomes if outcome != "protected")
-        if directory / "progress.json" in children:
-            control_bytes(directory / "progress.json", paths)
         plans[plan.operation_id] = plan
+        # Preserve full record equality without scanning the entire plan per retirement.
+        planned_retirements[plan.operation_id] = {key(p): p for p in plan.retirements}
     for directory in entries(control / "retired"):
         for path in entries(directory):
-            retirement = decode_retired(control_bytes(path, paths))
+            retirement = read(path, decode_retired)
             identity = key(retirement.publication)
             origin_plan = plans.get(retirement.collection_id)
             if (
@@ -329,7 +376,8 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
                 or publications.get(identity) != retirement.publication
                 or identity in current
                 or origin_plan is None
-                or retirement.publication not in origin_plan.retirements
+                or planned_retirements[retirement.collection_id].get(identity)
+                != retirement.publication
             ):
                 raise StoreCorruptionError("retirement lacks matching publication and plan")
             retired[identity] = retirement
@@ -342,7 +390,7 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
         ):
             raise StoreCorruptionError("collected object lacks all retirement evidence")
     for path in entries(control / "fixed-retentions"):
-        reference_record = decode_retention(control_bytes(path, paths))
+        reference_record = read(path, decode_retention)
         if reference_record.store_id != store.store_id or path != retention_path(
             root, reference_record.name
         ):
@@ -386,4 +434,12 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
         object_users,
         pending_objects,
         cleaned_objects,
+        requests,
+        seals,
+        abandoned,
+        tuple(refs),
+        pending_users,
+        {p.operation_id: p for p in progress_records},
+        cleanup_plans,
+        cleanup_states,
     )
