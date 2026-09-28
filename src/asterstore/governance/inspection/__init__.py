@@ -1,9 +1,7 @@
-"""Explicit retention, retirement and recoverable collection."""
+"""Explicit read-only observations and opt-in validation."""
 
-from ._collection import GovernancePreview, GovernanceResult
-from ._service import Governance
-from .cleanup import CleanupPreview, CleanupResult
-from .inspection import (
+from ._checks import check
+from ._models import (
     CheckIssue,
     CheckLevel,
     CheckReport,
@@ -13,6 +11,7 @@ from .inspection import (
     ProtectionReason,
     PublicationStatus,
 )
+from ._service import inspect
 
 __all__ = [
     "CheckIssue",
@@ -23,9 +22,6 @@ __all__ = [
     "ObjectExplanation",
     "ProtectionReason",
     "PublicationStatus",
-    "CleanupPreview",
-    "CleanupResult",
-    "Governance",
-    "GovernancePreview",
-    "GovernanceResult",
+    "check",
+    "inspect",
 ]

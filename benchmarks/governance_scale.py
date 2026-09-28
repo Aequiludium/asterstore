@@ -239,6 +239,9 @@ def measure(case: Case, parent: Path | None, repeats: int, durable: bool) -> dic
         with observe(root) as selections:
             binding.files()
         assert selections.report() == Probe().report()
+        inspection = read_measurement(root, repo.governance.inspect, repeats)
+        metadata_check = read_measurement(root, repo.governance.check, repeats)
+        assert repo.governance.check().ok
         preview = read_measurement(root, repo.governance.preview, repeats)
         expected = case.datasets * (case.publications_per_dataset - 1)
         if case.references and case.publications_per_dataset > 1:
@@ -274,6 +277,8 @@ def measure(case: Case, parent: Path | None, repeats: int, durable: bool) -> dic
             "before": before,
             "open_current": opened,
             "cached_selection": selection,
+            "inspection": inspection,
+            "metadata_check": metadata_check,
             "preview_before": preview,
             "retain": retain_probe,
             "release": release_probe,
@@ -293,6 +298,8 @@ def main() -> None:
     parser.add_argument("--datasets", nargs="+", type=int, default=[1, 32, 100])
     parser.add_argument("--references", nargs="+", type=int, default=[0, 32, 128])
     parser.add_argument("--logs", nargs="+", type=int, default=[0, 10, 100])
+    parser.add_argument("--mixed-datasets", type=int, default=0)
+    parser.add_argument("--mixed-history", type=int, default=100)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--durable", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--parent", type=Path)
@@ -303,12 +310,18 @@ def main() -> None:
         parser.error("history, datasets and repeats must be positive")
     if min(*args.references, *args.logs) < 0:
         parser.error("reference and log counts must be nonnegative")
+    if args.mixed_datasets < 0 or args.mixed_history < 1:
+        parser.error("mixed datasets must be nonnegative and history positive")
     if args.parent is not None:
         args.parent = args.parent.absolute()
     cases = [Case("history", publications_per_dataset=n) for n in args.history]
     cases += [Case("datasets", datasets=n) for n in args.datasets]
     cases += [Case("references", publications_per_dataset=3, references=n) for n in args.references]
     cases += [Case("logs", completed_collections=n) for n in args.logs]
+    if args.mixed_datasets:
+        cases.append(
+            Case("mixed", datasets=args.mixed_datasets, publications_per_dataset=args.mixed_history)
+        )
     project = Path(__file__).resolve().parents[1]
     sources = [Path(__file__).resolve(), *sorted((project / "src/asterstore").rglob("*.py"))]
     report = {
@@ -329,7 +342,8 @@ def main() -> None:
             "Mutation timings include instrumentation. Phase timings overlap: fsync is nested "
             "inside control sync/deletion, so do not add phase totals. Lock timing is acquisition "
             "overhead without contention. Counters cover Path.read_bytes/iterdir and os.fsync, "
-            "not all syscalls or physical device traffic. Setup uses real public APIs. "
+            "not os.walk/scandir, all syscalls or physical device traffic. "
+            "Setup uses real public APIs. "
             "Empty-plan log buildup does not represent large historical deletion plans."
         ),
         "source_sha256": {
@@ -337,6 +351,13 @@ def main() -> None:
         },
         "results": [measure(case, args.parent, args.repeats, args.durable) for case in cases],
     }
+    actual_sources = {
+        str(p.relative_to(project)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources
+    }
+    if actual_sources != report["source_sha256"]:
+        raise RuntimeError(
+            "benchmark sources changed during measurement; rerun on a stable checkout"
+        )
     data = json.dumps(report, indent=2) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

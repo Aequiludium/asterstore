@@ -25,6 +25,16 @@ from .governance import (
     GovernancePreview,
     GovernanceResult,
 )
+from .governance.inspection import (
+    CheckIssue,
+    CheckLevel,
+    CheckReport,
+    GovernanceSnapshot,
+    MaintenanceStatus,
+    ObjectExplanation,
+    ProtectionReason,
+    PublicationStatus,
+)
 from .metadata.capabilities import (
     ByteStability,
     Capabilities,
@@ -41,6 +51,14 @@ from .registration import RegistrationStatus
 from .repository import Repository
 
 __all__ = [
+    "CheckIssue",
+    "CheckLevel",
+    "CheckReport",
+    "GovernanceSnapshot",
+    "MaintenanceStatus",
+    "ObjectExplanation",
+    "ProtectionReason",
+    "PublicationStatus",
     "CleanupPreview",
     "CleanupResult",
     "FixedRetention",

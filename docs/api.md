@@ -1,6 +1,6 @@
 # 当前 API
 
-所有公开类型从 `asterstore` 导入。当前处于开发阶段，见[格式边界](compatibility.md)。
+所有公开类型从 `asterstore` 导入。v0.1.0 已发布；下述诊断与检查接口是主分支的未发布增量，见[格式边界](compatibility.md)。
 
 ## 声明与读取
 
@@ -49,3 +49,11 @@ registered 不能取得 OBJECTS 保留或数据删除权。普通 Binding 和 La
 错误继承 `AsterStoreError`；声明错误为 `InvalidDeclarationError`，冲突为 `PublicationConflictError` / `ReferenceConflictError`，损坏或不支持的格式为 `StoreCorruptionError`。`CandidateAbandonedError` 和 `PublicationRetiredError` 暴露 `operation_id`。文件系统和引擎错误可以原样传出。
 
 `asterstore.integrations.polars.scan_parquet(binding, keys=None, hive_partitioning=False)` 只把精确文件路径交给 Polars，禁用 glob，无额外治理 I/O。详见[引擎接入](integrations.md)。
+
+## 诊断与显式检查（未发布）
+
+- `governance.inspect()` 返回 `GovernanceSnapshot`：历史发布、候选状态、保留引用、回收/清理进度和对象保护来源。
+- `snapshot.explain_object(object_id)` 只查询内存中的结果。
+- `governance.check(level="metadata", resources=None, validator=None, checksums=None)` 返回带范围、时间和问题列表的 `CheckReport`。
+
+详细的只读边界、并发行为和各级检查能力见[诊断与检查](inspection.md)。

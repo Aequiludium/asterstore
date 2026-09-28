@@ -11,6 +11,10 @@ from asterstore.metadata.protocol import (
     DeclarationRecord,
     FixedRetention,
     GovernancePlan,
+    GovernanceProgress,
+    ManagedCleanupPlan,
+    ManagedCleanupProgress,
+    ManagedRequest,
     ObjectRecord,
     RetiredDeclaration,
     StoreRecord,
@@ -90,6 +94,14 @@ class Inventory:
     object_users: dict[str, set[PublicationKey]]
     pending_objects: set[str]
     cleaned_objects: set[str]
+    requests: dict[str, ManagedRequest]
+    seals: dict[str, DeclarationRecord]
+    abandoned: set[str]
+    references: tuple[FixedRetention, ...]
+    pending_users: dict[str, set[str]]
+    collection_progress: dict[str, GovernanceProgress]
+    cleanup_plans: dict[str, ManagedCleanupPlan]
+    cleanup_progress: dict[str, ManagedCleanupProgress]
 
 
 def inventory(root: Path, store: StoreRecord) -> Inventory:
@@ -172,6 +184,9 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
     abandoned = set()
     cleaned_paths: set[str] = set()
     private_cleanups: set[str] = set()
+    pending_users: dict[str, set[str]] = {}
+    cleanup_plans = {}
+    cleanup_states = {}
     committed_operations = {v.operation_id for v in publications.values()}
     for directory in entries(control / "managed-candidates"):
         children = entries(directory)
@@ -226,6 +241,7 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
                         ):
                             raise StoreCorruptionError("pending reuse lacks creator evidence")
                     protected.add(obj.object_id)
+                    pending_users.setdefault(obj.object_id, set()).add(request.operation_id)
         for name in ("cleanup-plan.json", "cleanup-progress.json"):
             if directory / name in children:
                 control_bytes(directory / name, paths)
@@ -235,6 +251,8 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
                 raise StoreCorruptionError("cleanup progress lacks its fixed plan")
         else:
             cleanup_progress = read_cleanup_progress(root, cleanup)
+            cleanup_plans[request.operation_id] = cleanup
+            cleanup_states[request.operation_id] = cleanup_progress
             if cleanup.location == "installed":
                 seal = seals.get(request.operation_id)
                 prefix = token(request.operation_id) + "/"
@@ -386,4 +404,12 @@ def inventory(root: Path, store: StoreRecord) -> Inventory:
         object_users,
         pending_objects,
         cleaned_objects,
+        requests,
+        seals,
+        abandoned,
+        tuple(refs),
+        pending_users,
+        {p.operation_id: p for p in progress_records},
+        cleanup_plans,
+        cleanup_states,
     )

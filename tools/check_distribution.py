@@ -123,6 +123,14 @@ assert cleanup.complete and cleanup.deleted_files == ('partial.bin',)
 assert managed.governance.resume_cleanup('failed') == cleanup
 assert not partial.exists()
 assert managed.governance.collect('after-cleanup').complete
+snapshot = managed.governance.inspect()
+assert snapshot.store_id == 'installed'
+current_oid = managed.describe('result').declaration.files.objects[0].object_id
+assert snapshot.explain_object(current_oid).reasons[0].kind == 'current'
+assert managed.governance.check(level='existence').ok
+assert managed.governance.check(
+    level='checksum', checksums={current_oid: hashlib.sha256(b'next generation').hexdigest()},
+).ok
 print('Isolated installation OK:', installed)
 """
 
