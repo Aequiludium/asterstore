@@ -26,6 +26,8 @@ def main() -> None:
             checksums={oid: hashlib.sha256(payload).hexdigest()},
         )
         assert report.ok and report.checked_objects == (oid,)
+        repo.governance.collect("maintenance:1")
+        assert repo.governance.collection_status("maintenance:1").complete
         print("Inspection: current + reader protection; trusted SHA-256 verified explicitly.")
 
 

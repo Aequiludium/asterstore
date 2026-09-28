@@ -52,6 +52,7 @@ registered 不能取得 OBJECTS 保留或数据删除权。普通 Binding 和 La
 
 ## 诊断与显式检查（未发布）
 
+- `governance.collection_status(operation_id)` / `cleanup_status(operation_id)` 读取单个任务计划和进度，不扫描全仓；返回 `MaintenanceStatus`，缺少计划抛 `PublicationNotFoundError`。
 - `governance.inspect()` 返回 `GovernanceSnapshot`：历史发布、候选状态、保留引用、回收/清理进度和对象保护来源。
 - `snapshot.explain_object(object_id)` 只查询内存中的结果。
 - `governance.check(level="metadata", resources=None, validator=None, checksums=None)` 返回带范围、时间和问题列表的 `CheckReport`。
