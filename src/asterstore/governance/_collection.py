@@ -12,6 +12,11 @@ from asterstore.metadata.protocol import (
     GovernanceProgress,
     ObjectRecord,
     RetiredDeclaration,
+    StoreRecord,
+    decode_governance_plan,
+    decode_governance_progress,
+    decode_object_record,
+    decode_retired,
     encode_governance_plan,
     encode_governance_progress,
     encode_retired,
@@ -27,13 +32,15 @@ from asterstore.storage.registry import (
     collection_directory,
     lifecycle_store,
     managed_data_root,
+    object_record_path,
     read_governance_plan,
     read_governance_progress,
     retired_path,
     token,
 )
 
-from ._inventory import Inventory, PublicationKey, inventory, key
+from ._control import ControlReader
+from ._inventory import Inventory, PublicationKey, check_control_root, entries, inventory, key
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +163,45 @@ def execute(root: Path, plan: GovernancePlan, view: Inventory) -> GovernanceResu
     return result(progress)
 
 
+def completed_result(
+    root: Path, store: StoreRecord, plan: GovernancePlan, progress: GovernanceProgress
+) -> GovernanceResult:
+    """Replay fixed outcomes, checking only this operation's evidence; never delete.
+
+    All deletion evidence and data-directory changes were synced before the complete
+    checkpoint was written. Its final rename may still need a directory fsync.
+    Full-store relationship validation remains explicit via inspect/check/preview,
+    and mandatory before any incomplete collection can resume deletion.
+    """
+    check_control_root(root)
+    directory = collection_directory(root, plan.operation_id)
+    if {p.name for p in entries(directory)} - {"plan.json", "progress.json"}:
+        raise StoreCorruptionError("unknown collection record")
+    reader = ControlReader()
+    reader.check_parents(root / ".asterstore", directory / "plan.json")
+    if (
+        reader.read(directory / "plan.json", decode_governance_plan) != plan
+        or reader.read(directory / "progress.json", decode_governance_progress) != progress
+    ):
+        raise StoreCorruptionError("collection checkpoint changed while coordinated")
+    retirements = {key(p): p for p in plan.retirements}
+    for identity in progress.retired:
+        path = retired_path(root, *identity)
+        reader.check_parents(root / ".asterstore", path)
+        if reader.read(path, decode_retired).publication != retirements[identity]:
+            raise StoreCorruptionError("collection progress lacks matching retirement evidence")
+    for obj in plan.objects:
+        path = object_record_path(root, obj.object_id)
+        reader.check_parents(root / ".asterstore", path)
+        if reader.read(path, decode_object_record) != obj or obj.store_id != store.store_id:
+            raise StoreCorruptionError("collection plan conflicts with object authority")
+    sync_control_files(
+        root,
+        (root / ".asterstore/format.json", directory / "plan.json", directory / "progress.json"),
+    )
+    return result(progress)
+
+
 def collect(root: Path, operation_id: str, *, resume: bool = False) -> GovernanceResult:
     token(operation_id)
     lifecycle_store(root)
@@ -164,6 +210,10 @@ def collect(root: Path, operation_id: str, *, resume: bool = False) -> Governanc
         plan = read_governance_plan(root, store, operation_id)
         if plan is None and resume:
             raise PublicationNotFoundError("collection operation does not exist")
+        if plan is not None:
+            progress = read_governance_progress(root, plan)
+            if progress.complete:
+                return completed_result(root, store, plan, progress)
         view = inventory(root, store)
         if plan is None:
             selection = preview_inventory(view)

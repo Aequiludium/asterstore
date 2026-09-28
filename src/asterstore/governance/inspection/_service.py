@@ -3,11 +3,16 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from asterstore.errors import StoreCorruptionError
+from asterstore.errors import (
+    RepositoryNotInitializedError,
+    StoreCorruptionError,
+    UnsupportedCapabilityError,
+)
 from asterstore.metadata.capabilities import RetentionScope
+from asterstore.metadata.protocol import decode_store
 from asterstore.publishing._status import status_from_records
-from asterstore.storage.registry import lifecycle_store
 
+from .._control import ControlReader
 from .._inventory import Inventory, inventory, key
 from ._locking import inspection_lock
 from ._models import (
@@ -19,8 +24,17 @@ from ._models import (
 )
 
 
-def read_inventory(root: Path, coordinated: bool) -> Inventory:
-    view = inventory(root, lifecycle_store(root))
+def read_inventory(
+    root: Path, coordinated: bool, *, reader: ControlReader | None = None
+) -> Inventory:
+    reader = ControlReader() if reader is None else reader
+    try:
+        store = reader.read(root / ".asterstore/format.json", decode_store)
+    except FileNotFoundError as exc:
+        raise RepositoryNotInitializedError(f"repository is not initialized: {root}") from exc
+    if not store.lifecycle:
+        raise UnsupportedCapabilityError("store must explicitly enable lifecycle governance")
+    view = inventory(root, store, reader=reader)
     if not coordinated:
         if (root / ".asterstore/gc.lock").exists():
             raise BlockingIOError("first writer started during inspection; retry")

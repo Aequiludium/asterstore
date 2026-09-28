@@ -265,6 +265,9 @@ def measure(case: Case, parent: Path | None, repeats: int, durable: bool) -> dic
         assert not collected.missing_objects and not collected.protected_objects
         resumed, retry = profiled(root, lambda: repo.governance.resume_collection("measurement"))
         assert resumed == collected and retry["deletion_calls"] == 0
+        task_status = read_measurement(
+            root, lambda: repo.governance.collection_status("measurement"), repeats
+        )
         after_preview = read_measurement(root, repo.governance.preview, repeats)
         assert not repo.governance.preview().reclaimable
         after = footprint(root)
@@ -284,6 +287,7 @@ def measure(case: Case, parent: Path | None, repeats: int, durable: bool) -> dic
             "release": release_probe,
             "collect": collection,
             "completed_retry": retry,
+            "collection_status": task_status,
             "preview_after": after_preview,
             "after": after,
             "deleted_objects": expected,

@@ -13,6 +13,7 @@ from asterstore.metadata import protocol as codec
 from asterstore.reading.resources import ResourceMap
 from asterstore.storage.registry import managed_data_root
 
+from .._control import ControlReader
 from ._locking import inspection_lock
 from ._models import CheckIssue, CheckLevel, CheckReport
 from ._service import read_inventory
@@ -55,7 +56,7 @@ def decoder(parts: tuple[str, ...]) -> Callable[[bytes], object] | None:
     return None
 
 
-def record_issues(root: Path) -> list[CheckIssue]:
+def record_issues(root: Path, reader: ControlReader) -> list[CheckIssue]:
     """Collect independent malformed control records before checking their relationships."""
     issues: list[CheckIssue] = []
     control = root / ".asterstore"
@@ -97,7 +98,7 @@ def record_issues(root: Path) -> list[CheckIssue]:
                         CheckIssue("control_type", "control record is not ordinary", path)
                     )
                     continue
-                decode(path.read_bytes())
+                reader.read(path, decode)
             except (AsterStoreError, OSError) as exc:
                 issues.append(CheckIssue("control_record", str(exc), path))
     return issues
@@ -154,9 +155,10 @@ def check(
     coordinated = metadata_complete = False
     try:
         with inspection_lock(root) as coordinated:
-            issues.extend(record_issues(root))
+            reader = ControlReader()
+            issues.extend(record_issues(root, reader))
             if not issues:
-                view = read_inventory(root, coordinated)
+                view = read_inventory(root, coordinated, reader=reader)
                 metadata_complete = True
                 if level != "metadata":
                     # Check all non-retired committed publications, deduplicating shared
