@@ -22,7 +22,7 @@
 2. 在 main 手动运行 [Publish](../.github/workflows/publish.yml)，先选择 `publish=false` 做完整演练。
 3. 工作流复用质量/协议、Python 3.11/3.12 测试和隔离发行验证。选取同次运行中 Python 3.12 构建的 wheel/sdist，核对版本、文件名、验证项目和 SHA-256，单独保存上传制品。
 4. PyPI publisher 已配置后，以 `publish=true` 运行同一工作流。它重新验证目标提交，并仅上传该次验证过的两个文件，不在上传任务中重新构建；OIDC 权限只授予上传任务。
-5. 核对 PyPI 的版本及文件哈希，完成从 PyPI 的独立安装验证，再创建对应 Git tag/Release 并记录完成状态。Aster 随后从固定 Git 来源切换到 `asterstore>=0.1.0,<0.2`。
+5. 核对 PyPI 的版本及文件哈希，完成从 PyPI 的独立安装验证，再创建对应 Git tag/Release 并记录完成状态。下游项目可继续使用固定 Git 提交；是否切换到 PyPI 依赖由各项目单独决定。
 
 普通 CI、PR、main 推送不会自动上传。Publish 仅允许 main，默认演练；不启用 skip-existing 掩盖部分上传或同版本冲突。若发生部分上传，先对比 PyPI 与本次已验证文件的 SHA-256，再决定如何补齐；不重建同版本的不同字节。
 
