@@ -1,5 +1,7 @@
 # 治理诊断与控制历史成本：2026-09-28
 
+后续消除重复解码并缩小完成态重试范围的结果，另见[优化复测](governance-scale-2026-09-28-optimized.md)。本页保留前两轮的原始结果。
+
 本次以实际 API 在临时仓库构建合成历史，未操作生产 AsterStore。
 [索引前原始报告](governance-scale-2026-09-28-before.json)与[索引后原始报告](governance-scale-2026-09-28.json)保留所有样本、计数、峰值分配和源码 SHA-256。
 

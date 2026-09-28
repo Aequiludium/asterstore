@@ -29,3 +29,5 @@ uv run --locked --extra polars python benchmarks/governance_scale.py \
 ```
 
 本次[测量说明](../docs/validation/governance-scale-2026-09-28.md)与[原始报告](../docs/validation/governance-scale-2026-09-28.json)记录真实 API 操作产生的合成控制历史。它不代表完整生产数据、数据体积上限、并发争用或真实断电验收。格式/内容检查的吞吐量也不包含在 metadata 检查计时中。
+
+后续[优化复测](../docs/validation/governance-scale-2026-09-28-optimized.md)及[原始报告](../docs/validation/governance-scale-2026-09-28-optimized.json)保留相同场景下的改善、首次 GC 未改善结果与内存代价。
