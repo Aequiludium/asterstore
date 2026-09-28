@@ -48,6 +48,10 @@ class Governance:
     def get(self, name: str) -> FixedRetention:
         return _references.get(self.root, name)
 
+    def list_retentions(self, *, active_only: bool = False) -> tuple[FixedRetention, ...]:
+        """Explicitly enumerate reference identities and revisions, without opening data."""
+        return _references.list_retentions(self.root, active_only=active_only)
+
     def release(self, name: str, *, expected_revision: int) -> FixedRetention:
         return _references.release(self.root, name, expected_revision=expected_revision)
 

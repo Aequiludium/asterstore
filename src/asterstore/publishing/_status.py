@@ -24,6 +24,10 @@ class CandidateStatus:
     state: Literal[
         "writing", "prepared", "conflict", "current", "historical", "retired", "abandoned"
     ]
+    store_id: str
+    dataset_id: str
+    publication_id: str
+    expected_generation: int
 
 
 def candidate_status(root: Path, operation_id: str) -> CandidateStatus:
@@ -34,7 +38,14 @@ def candidate_status(root: Path, operation_id: str) -> CandidateStatus:
         if request is None:
             raise PublicationNotFoundError("managed candidate does not exist")
         if read_abandoned(root, store, operation_id) is not None:
-            return CandidateStatus(operation_id, "abandoned")
+            return CandidateStatus(
+                operation_id,
+                "abandoned",
+                request.store_id,
+                request.dataset_id,
+                request.publication_id,
+                request.expected_generation,
+            )
         try:
             sealed = decode_declaration_record(
                 (managed_directory(root, operation_id) / "sealed.json").read_bytes()
@@ -70,4 +81,11 @@ def candidate_status(root: Path, operation_id: str) -> CandidateStatus:
             state = "conflict"
         else:
             state = "writing" if sealed is None else "prepared"
-        return CandidateStatus(operation_id, state)
+        return CandidateStatus(
+            operation_id,
+            state,
+            request.store_id,
+            request.dataset_id,
+            request.publication_id,
+            request.expected_generation,
+        )

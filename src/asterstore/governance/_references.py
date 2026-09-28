@@ -9,10 +9,16 @@ from asterstore.errors import (
     PublicationNotFoundError,
     ReferenceConflictError,
     ReferenceNotFoundError,
+    StoreCorruptionError,
     UnsupportedCapabilityError,
 )
 from asterstore.metadata.capabilities import RetentionScope
-from asterstore.metadata.protocol import MAX_GENERATION, FixedRetention, encode_retention
+from asterstore.metadata.protocol import (
+    MAX_GENERATION,
+    FixedRetention,
+    decode_retention,
+    encode_retention,
+)
 from asterstore.reading import Binding
 from asterstore.storage import atomic_write, file_lock, sync_control_files
 from asterstore.storage.registry import (
@@ -83,6 +89,23 @@ def get(root: Path, name: str) -> FixedRetention:
     if value is None:
         raise ReferenceNotFoundError(name)
     return value
+
+
+def list_retentions(root: Path, *, active_only: bool = False) -> tuple[FixedRetention, ...]:
+    """List fixed references, including released evidence unless explicitly filtered."""
+    if type(active_only) is not bool:
+        raise TypeError("active_only must be a boolean")
+    lifecycle_store(root)
+    with file_lock(root / ".asterstore/gc.lock", exclusive=False):
+        store = lifecycle_store(root)
+        values = []
+        for path in (root / ".asterstore/fixed-retentions").glob("*"):
+            value = decode_retention(path.read_bytes())
+            if value.store_id != store.store_id or path != retention_path(root, value.name):
+                raise StoreCorruptionError("retention path identity mismatch")
+            if not active_only or value.active:
+                values.append(value)
+        return tuple(sorted(values, key=lambda value: value.name))
 
 
 def release(root: Path, name: str, *, expected_revision: int) -> FixedRetention:

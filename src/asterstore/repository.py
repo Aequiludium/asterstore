@@ -10,7 +10,7 @@ from .governance import Governance
 from .metadata import Declaration, HistoryAccess
 from .metadata.protocol import DeclarationRecord, ManagedRequest, StoreRecord
 from .publishing import Candidate, CandidateStatus, candidate_status
-from .reading import Binding, describe, open_binding
+from .reading import Binding, describe, list_datasets, open_binding
 from .registration import RegistrationStatus, register, registration_status, resume_registration
 from .storage import absolute_root
 from .storage.registry import initialize_store, read_store
@@ -88,6 +88,10 @@ class Repository:
 
     def describe(self, dataset_id: str, *, publication_id: str | None = None) -> DeclarationRecord:
         return describe(self.root, dataset_id, publication_id=publication_id)
+
+    def list_datasets(self) -> tuple[str, ...]:
+        """Explicitly enumerate committed dataset IDs; never inspect data files."""
+        return list_datasets(self.root)
 
     def resume_registration(self, operation_id: str, *, durable: bool = True) -> DeclarationRecord:
         return resume_registration(self.root, operation_id, durable=durable)
