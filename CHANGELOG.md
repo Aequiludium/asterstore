@@ -1,5 +1,8 @@
 # Changelog
 
+本轮未发布：增加 `Repository.list_datasets()`、`governance.list_retentions()`，
+以及 CandidateStatus 的持久化归属字段。仅显式查询控制记录，不改变存储协议或普通读取成本。
+
 ## 0.1.0 — 待发布
 
 首个公开版本，使用唯一的 `store` 格式（format_version=1）。
