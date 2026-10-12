@@ -1,6 +1,6 @@
 # 当前 API
 
-所有公开类型从 `asterstore` 导入。v0.1.0 已发布；下述诊断与检查接口是主分支的未发布增量，见[格式边界](compatibility.md)。
+常用公开类型从 `asterstore` 导入，诊断返回类型从 `asterstore.governance.inspection` 导入。诊断与检查接口自 0.2.0 提供，见[格式边界](compatibility.md)。
 
 ## 声明与读取
 
@@ -50,7 +50,7 @@ registered 不能取得 OBJECTS 保留或数据删除权。普通 Binding 和 La
 
 `asterstore.integrations.polars.scan_parquet(binding, keys=None, hive_partitioning=False)` 只把精确文件路径交给 Polars，禁用 glob，无额外治理 I/O。详见[引擎接入](integrations.md)。
 
-## 诊断与显式检查（未发布）
+## 诊断与显式检查（0.2.0 起）
 
 - `governance.collection_status(operation_id)` / `cleanup_status(operation_id)` 读取单个任务计划和进度，不扫描全仓；返回 `MaintenanceStatus`，缺少计划抛 `PublicationNotFoundError`。
 - `governance.inspect()` 返回 `GovernanceSnapshot`：历史发布、候选状态、保留引用、回收/清理进度和对象保护来源。

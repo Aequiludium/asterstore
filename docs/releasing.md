@@ -26,7 +26,7 @@
 
 普通 CI、PR、main 推送不会自动上传。Publish 仅允许 main，默认演练；不启用 skip-existing 掩盖部分上传或同版本冲突。若发生部分上传，先对比 PyPI 与本次已验证文件的 SHA-256，再决定如何补齐；不重建同版本的不同字节。
 
-本地也可运行 `tools/check_distribution.py --polars --output-dir dist/0.1.0-verified`。每次使用新目录；验证报告记录来源摘要、许可证、安装结果和文件 SHA-256。自动化权限见[仓库自动化](automation.md)。
+本地也可运行 `tools/check_distribution.py --polars --output-dir dist/0.2.0-verified`。每次使用新目录；验证报告记录来源摘要、许可证、安装结果和文件 SHA-256。自动化权限见[仓库自动化](automation.md)。
 
 
 普通 PR 的 CI 也会运行 `Release artifact verification`：下载本次构建的 Python 3.12

@@ -10,7 +10,7 @@ uv run --locked --extra polars mypy
 uv run --locked --extra polars python tools/check_protocol.py
 uv run --locked --extra polars pytest
 for example in examples/*.py; do uv run --locked --extra polars python "$example"; done
-uv run --locked --extra polars python tools/check_distribution.py --polars --output-dir dist/0.1.0-verified
+uv run --locked --extra polars python tools/check_distribution.py --polars --output-dir dist/0.2.0-verified
 ```
 
 协议检查验证唯一 Schema、11 类控制记录的 codec 和正反样例，不维护历史 API 快照。测试覆盖外部登记、受管提交、逻辑成员、对象复用、固定保留、GC、候选清理、进程竞争、强制终止恢复和读路径 I/O 边界。
