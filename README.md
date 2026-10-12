@@ -45,13 +45,15 @@
 
 ## 快速开始
 
-从源码体验，需要 Python 3.11+ 和 uv：
+需要 Python 3.11+，在你的 uv 项目中安装：
 
 ```bash
-git clone https://github.com/Aequiludium/asterstore.git
-cd asterstore
-uv sync --locked
+uv add asterstore
+# 使用 Polars 接口时：
+uv add 'asterstore[polars]'
 ```
+
+从源码开发见[贡献指南](CONTRIBUTING.md)。
 
 **写入一次，显式发布。** 将下面代码保存为 `demo.py`，运行 `uv run python demo.py`：
 
@@ -101,7 +103,7 @@ finally:
 
 </details>
 
-**使用 Polars**，可直接运行增量发布、延迟查询与回收的完整示例：
+**使用 Polars**，可在源码仓库中运行增量发布、延迟查询与回收的完整示例：
 
 ```bash
 uv sync --locked --extra polars
@@ -114,14 +116,15 @@ uv run --locked --extra polars python examples/parquet.py
 | --- | --- |
 | 使用接口与读取引擎 | [API](docs/api.md) · [引擎接入](docs/integrations.md) · [示例](examples) |
 | 发布、保留与回收如何工作 | [发布](docs/publishing.md) · [治理](docs/governance.md) · [候选清理](docs/cleanup.md) |
+| 诊断与显式检查（未发布） | [范围与并发约定](docs/inspection.md) · [示例](examples/inspection.py) |
 | 模型与磁盘格式 | [设计原则](docs/design.md) · [项目结构](docs/architecture.md) · [协议](docs/protocol.md) |
 | 开发、验证与贡献 | [开发指南](docs/development.md) · [性能验证](benchmarks/README.md) · [贡献指南](CONTRIBUTING.md) |
 
 ## 项目状态
 
-**`0.1.0` 首版发布准备中**。已完成 Aster 真实分钟行情的本地受管接入，验证发布、增量复用、读取、保留与回收；详见[接入验收](docs/aster-integration.md)。PyPI 上传完成前，请继续使用源码。
+**[`0.1.0` 已正式发布](https://pypi.org/project/asterstore/0.1.0/)**。已完成 Aster 真实分钟行情的本地受管接入，验证发布、增量复用、读取、保留与回收；详见[接入验收](docs/aster-integration.md)。主分支新增的[诊断与检查](docs/inspection.md)仍属于未发布增量，使用前请核对版本。
 
-当前验证范围为本地 Linux/POSIX；NFS 等共享挂载需要单独验证。核心以单个数据集发布为提交单位，控制历史尚未压缩。支持范围与后续工作见[首版范围](docs/release-scope.md)、[路线图](docs/roadmap.md)及[开发格式边界](docs/compatibility.md)。
+当前验证范围为本地 Linux/POSIX；NFS 等共享挂载需要单独验证。核心以单个数据集发布为提交单位，控制历史尚未压缩。支持范围与后续工作见[首版范围](docs/release-scope.md)、[路线图](docs/roadmap.md)及[格式边界](docs/compatibility.md)。
 
 ---
 

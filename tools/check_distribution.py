@@ -23,6 +23,7 @@ import importlib.util
 import pathlib
 import sys
 import asterstore
+from asterstore.governance.inspection import CheckReport, GovernanceSnapshot
 
 installed = pathlib.Path(asterstore.__file__).resolve()
 assert installed.is_relative_to(pathlib.Path(sys.prefix).resolve()), installed
@@ -111,6 +112,7 @@ managed.governance.release('task', expected_revision=held.revision)
 collected = managed.governance.collect('gc')
 assert len(collected.deleted_objects) == 1
 assert managed.governance.resume_collection('gc') == collected
+assert managed.governance.collection_status('gc').complete
 assert managed.candidate_status('op1').state == 'retired'
 assert managed.describe('result', publication_id='p1').declaration.publication_id == 'p1'
 with managed.prepare('result', publication_id='failed', operation_id='failed',
@@ -121,8 +123,22 @@ assert managed.governance.preview_cleanup('failed').files == ('partial.bin',)
 cleanup = managed.governance.cleanup('failed')
 assert cleanup.complete and cleanup.deleted_files == ('partial.bin',)
 assert managed.governance.resume_cleanup('failed') == cleanup
+assert managed.governance.cleanup_status('failed').complete
 assert not partial.exists()
 assert managed.governance.collect('after-cleanup').complete
+snapshot = managed.governance.inspect()
+assert isinstance(snapshot, GovernanceSnapshot)
+assert snapshot.store_id == 'installed'
+assert isinstance(managed.governance.check(), CheckReport)
+assert issubclass(asterstore.RepositoryBusyError, asterstore.AsterStoreError)
+assert not hasattr(asterstore, 'CheckReport')
+assert not any(str(p).startswith('docs/validation/') for p in distribution.files or [])
+current_oid = managed.describe('result').declaration.files.objects[0].object_id
+assert snapshot.explain_object(current_oid).reasons[0].kind == 'current'
+assert managed.governance.check(level='existence').ok
+assert managed.governance.check(
+    level='checksum', checksums={current_oid: hashlib.sha256(b'next generation').hexdigest()},
+).ok
 print('Isolated installation OK:', installed)
 """
 
@@ -200,6 +216,7 @@ def main() -> None:
             members = {name.partition("/")[2] for name in archive.getnames()}
             required = {
                 "docs/api.md",
+                "docs/validation/governance-scale-2026-09-28-optimized.json",
                 "tests/fixtures/protocol/publication.json",
                 "docs/governance.md",
                 "docs/protocol.md",
