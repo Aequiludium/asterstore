@@ -60,3 +60,5 @@ registered 不能取得 OBJECTS 保留或数据删除权。普通 Binding 和 La
 详细的只读边界、并发行为和各级检查能力见[诊断与检查](inspection.md)。
 
 诊断接口 `inspect`、`check`、`collection_status`、`cleanup_status` 无法取得稳定观察时，统一抛 `RepositoryBusyError(AsterStoreError)`，不自动等待；调用方稍后重试。诊断返回类型从 `asterstore.governance.inspection` 导入，详情见[诊断与检查](inspection.md)。
+
+`check()` 将检查过程中捕获的非忙 `AsterStoreError` / `OSError` 汇总到报告；`inspect()` 和任务状态查询直接抛出遇到的错误。参数校验错误仍抛出，详见[错误契约](inspection.md#错误契约)。

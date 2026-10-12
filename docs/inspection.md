@@ -58,6 +58,28 @@ format 与 checksum 是独立检查方式。核心不自带格式解码器；例
 
 `CheckReport` 记录请求级别、开始/结束 UTC 时间、是否协调、关系检查是否完成、目标对象、成功完成该级别的对象及问题。多个独立坏控制记录或缺失文件会分别报告；独立记录无误后再检查关系，关系层遇到首个错误停止，数据层不在元数据不可信时继续。它不是自动修复或穷尽所有关联错误的工具。
 
+## 错误契约
+
+`check()` 是汇总检查发现的接口，`inspect()`、`collection_status()` 和
+`cleanup_status()` 是返回明确类型的查询接口。非忙状态下，两者有意采用不同的
+错误表达方式：
+
+| 情况 | `check()` | `inspect()` / 任务状态查询 |
+| --- | --- | --- |
+| 诊断锁竞争或检测到首次写入竞态 | 抛 `RepositoryBusyError`，不返回报告 | 抛 `RepositoryBusyError` |
+| 仓库未启用 lifecycle | 返回含 `metadata_error` 的报告，`metadata_complete=False` | 抛 `UnsupportedCapabilityError` |
+| 遇到损坏的控制记录或关系、检查过程中的文件 I/O 错误 | 汇总所捕获的 `AsterStoreError` / `OSError` 为 `CheckIssue`；错误代码取决于阶段，如 `control_record`、`metadata_error`、`object_unavailable` | 遇到相应错误时直接抛出，不构造部分查询结果 |
+
+调用方应同时处理诊断无法取得稳定观察的异常与 `report.ok=False` 的检查结果。
+报告发现问题不等于完成全部检查；还需查看 `metadata_complete`、目标对象和已检查
+对象，判断实际覆盖范围。任务状态查询只检查目标任务，不保证发现无关控制记录的损坏。
+
+`check()` 并非捕获所有异常的包装器：参数校验在生成报告之前执行，例如非法
+`level`、缺少 validator 或无效 checksum 基准仍抛 `ValueError`；未按检查发现处理的
+程序错误也会传播。格式检查是一个明确的例外：调用方 `validator(path)` 抛出的
+`Exception` 会被记录为 `format_error`，表示该对象没有通过验证；它不表示诊断自身
+的锁获取失败。
+
 ## 并发与成本
 
 inspect、check 及任务状态查询只打开已有 gc.lock，以非阻塞排他锁稳定控制状态，并阻止受管 GC 在数据检查期间删除对象。四个接口在锁被占用时统一抛 `RepositoryBusyError`（继承 `AsterStoreError`），不返回部分快照、任务状态或 CheckReport；调用方决定重试时机。已初始化但从未写入的空仓库可返回 `coordinated=False`，不为查询创建锁；检测到首次写入竞态也抛同一个错误。大提交或回收期间，诊断可能立即报忙；仓库规模和写入频率增加会延长这个窗口。非阻塞行为是有意选择，接口不自动等待或重试。
