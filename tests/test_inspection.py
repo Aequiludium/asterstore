@@ -14,6 +14,7 @@ from asterstore import (
     Member,
     Object,
     Repository,
+    RepositoryBusyError,
     RetentionScope,
 )
 from asterstore.storage import file_lock
@@ -142,15 +143,20 @@ def test_empty_and_missing_repository_never_create_lock(tmp_path):
     assert not (root / ".asterstore/gc.lock").exists()
 
 
-def test_busy_diagnostics_fail_promptly_without_reentrant_deadlock(tmp_path):
+@pytest.mark.parametrize("exclusive", [False, True])
+@pytest.mark.parametrize("method", ["inspect", "check", "collection_status", "cleanup_status"])
+def test_busy_diagnostics_fail_promptly_without_reentrant_deadlock(tmp_path, exclusive, method):
     repo = repository(tmp_path)
     publish(repo, "p1", 0)
-    with file_lock(tmp_path / ".asterstore/gc.lock", exclusive=False):
-        with pytest.raises(BlockingIOError):
-            repo.governance.inspect()
-        report = repo.governance.check()
-        assert not report.ok and not report.metadata_complete
-        assert [i.code for i in report.issues] == ["busy"]
+    before = files(tmp_path)
+    call = getattr(repo.governance, method)
+    args = ("missing",) if method.endswith("_status") else ()
+    with file_lock(tmp_path / ".asterstore/gc.lock", exclusive=exclusive):
+        with pytest.raises(RepositoryBusyError, match="retry") as error:
+            call(*args)
+        assert isinstance(error.value.__cause__, BlockingIOError)
+    assert repo.governance.check().ok
+    assert files(tmp_path) == before
 
 
 def test_collect_multiple_malformed_control_records(tmp_path):
@@ -213,7 +219,8 @@ def test_format_callback_is_explicit_and_nested_inspection_reports_busy(tmp_path
 
     def validate(path):
         seen.append(path)
-        assert repo.governance.check().issues[0].code == "busy"
+        with pytest.raises(RepositoryBusyError):
+            repo.governance.check()
         if path.read_bytes() != b"valid":
             raise ValueError("invalid example format")
 
@@ -374,3 +381,33 @@ def test_retired_plan_validation_uses_linear_record_comparisons(tmp_path, monkey
     assert not repo.governance.preview().reclaimable
     # Whole-record integrity checks remain, but no triangular scan of a GC plan.
     assert comparisons < 12 * count
+
+
+@pytest.mark.parametrize("method", ["inspect", "check", "collection_status", "cleanup_status"])
+def test_first_writer_lock_creation_race_uses_public_busy_error(tmp_path, monkeypatch, method):
+    from asterstore.governance.inspection import _locking
+
+    repo = repository(tmp_path)
+    publish(repo, "p1", 0)
+    repo.governance.collect("gc")
+    with repo.prepare("data", publication_id="p2", operation_id="pending", expected_generation=1):
+        pass
+    repo.governance.abandon("pending")
+    repo.governance.cleanup("pending")
+    before = files(tmp_path)
+    original = _locking.os.open
+
+    def first_writer_race(path, flags, *args, **kwargs):
+        if path == tmp_path / ".asterstore/gc.lock":
+            # The reader observes absence, but the first writer creates the lock
+            # before the reader validates its observation. Keep real control reads.
+            raise FileNotFoundError(path)
+        return original(path, flags, *args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(_locking.os, "open", first_writer_race)
+        args = {"collection_status": ("gc",), "cleanup_status": ("pending",)}.get(method, ())
+        with pytest.raises(RepositoryBusyError, match="first writer.*retry"):
+            getattr(repo.governance, method)(*args)
+    assert repo.governance.check().ok
+    assert files(tmp_path) == before

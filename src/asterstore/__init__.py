@@ -11,6 +11,7 @@ from .errors import (
     PublicationRetiredError,
     ReferenceConflictError,
     ReferenceNotFoundError,
+    RepositoryBusyError,
     RepositoryNotInitializedError,
     ResourceNotBoundError,
     StoreCorruptionError,
@@ -24,16 +25,6 @@ from .governance import (
     Governance,
     GovernancePreview,
     GovernanceResult,
-)
-from .governance.inspection import (
-    CheckIssue,
-    CheckLevel,
-    CheckReport,
-    GovernanceSnapshot,
-    MaintenanceStatus,
-    ObjectExplanation,
-    ProtectionReason,
-    PublicationStatus,
 )
 from .metadata.capabilities import (
     ByteStability,
@@ -51,14 +42,6 @@ from .registration import RegistrationStatus
 from .repository import Repository
 
 __all__ = [
-    "CheckIssue",
-    "CheckLevel",
-    "CheckReport",
-    "GovernanceSnapshot",
-    "MaintenanceStatus",
-    "ObjectExplanation",
-    "ProtectionReason",
-    "PublicationStatus",
     "CleanupPreview",
     "CleanupResult",
     "FixedRetention",
@@ -96,6 +79,7 @@ __all__ = [
     "PublicationConflictError",
     "PublicationNotFoundError",
     "Repository",
+    "RepositoryBusyError",
     "RepositoryNotInitializedError",
     "StoreCorruptionError",
     "UnsupportedPlatformError",

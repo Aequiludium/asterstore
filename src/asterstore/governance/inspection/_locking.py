@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from asterstore.errors import StoreCorruptionError, UnsupportedPlatformError
+from asterstore.errors import RepositoryBusyError, StoreCorruptionError, UnsupportedPlatformError
 
 
 @contextmanager
@@ -25,7 +25,10 @@ def inspection_lock(root: Path) -> Iterator[bool]:
     try:
         if not stat.S_ISREG(os.fstat(fd).st_mode):
             raise StoreCorruptionError("coordination lock is not an ordinary file")
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RepositoryBusyError("repository is busy; retry diagnostics later") from exc
         try:
             yield True
         finally:

@@ -8,7 +8,7 @@ from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 
-from asterstore.errors import AsterStoreError
+from asterstore.errors import AsterStoreError, RepositoryBusyError
 from asterstore.metadata import protocol as codec
 from asterstore.reading.resources import ResourceMap
 from asterstore.storage.registry import managed_data_root
@@ -217,8 +217,8 @@ def check(
                             checked.append(oid)
                         except (AsterStoreError, OSError) as exc:
                             issues.append(CheckIssue("object_unavailable", str(exc), path, oid))
-    except BlockingIOError as exc:
-        issues.append(CheckIssue("busy", str(exc)))
+    except RepositoryBusyError:
+        raise
     except (AsterStoreError, OSError) as exc:
         issues.append(CheckIssue("metadata_error", str(exc)))
     return CheckReport(

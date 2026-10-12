@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from asterstore import PublicationNotFoundError, StoreCorruptionError
+from asterstore import PublicationNotFoundError, RepositoryBusyError, StoreCorruptionError
 from asterstore.storage import _files, file_lock
 from asterstore.storage.registry import (
     collection_directory,
@@ -64,7 +64,7 @@ def test_collection_status_has_bounded_io_and_obeys_read_only_lock(tmp_path, mon
     assert repo.governance.collection_status("gc") == expected
     assert len(observed) == 3
     with file_lock(tmp_path / ".asterstore/gc.lock", exclusive=False):
-        with pytest.raises(BlockingIOError):
+        with pytest.raises(RepositoryBusyError):
             repo.governance.collection_status("gc")
 
 

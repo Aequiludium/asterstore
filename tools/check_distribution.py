@@ -23,6 +23,7 @@ import importlib.util
 import pathlib
 import sys
 import asterstore
+from asterstore.governance.inspection import CheckReport, GovernanceSnapshot
 
 installed = pathlib.Path(asterstore.__file__).resolve()
 assert installed.is_relative_to(pathlib.Path(sys.prefix).resolve()), installed
@@ -126,7 +127,12 @@ assert managed.governance.cleanup_status('failed').complete
 assert not partial.exists()
 assert managed.governance.collect('after-cleanup').complete
 snapshot = managed.governance.inspect()
+assert isinstance(snapshot, GovernanceSnapshot)
 assert snapshot.store_id == 'installed'
+assert isinstance(managed.governance.check(), CheckReport)
+assert issubclass(asterstore.RepositoryBusyError, asterstore.AsterStoreError)
+assert not hasattr(asterstore, 'CheckReport')
+assert not any(str(p).startswith('docs/validation/') for p in distribution.files or [])
 current_oid = managed.describe('result').declaration.files.objects[0].object_id
 assert snapshot.explain_object(current_oid).reasons[0].kind == 'current'
 assert managed.governance.check(level='existence').ok
@@ -210,6 +216,7 @@ def main() -> None:
             members = {name.partition("/")[2] for name in archive.getnames()}
             required = {
                 "docs/api.md",
+                "docs/validation/governance-scale-2026-09-28-optimized.json",
                 "tests/fixtures/protocol/publication.json",
                 "docs/governance.md",
                 "docs/protocol.md",

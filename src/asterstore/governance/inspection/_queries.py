@@ -4,7 +4,11 @@ import stat
 from pathlib import Path
 from typing import Literal
 
-from asterstore.errors import PublicationNotFoundError, StoreCorruptionError
+from asterstore.errors import (
+    PublicationNotFoundError,
+    RepositoryBusyError,
+    StoreCorruptionError,
+)
 from asterstore.storage.registry import (
     collection_directory,
     lifecycle_store,
@@ -72,6 +76,6 @@ def maintenance_status(
             )
         if not coordinated:
             if (root / ".asterstore/gc.lock").exists():
-                raise BlockingIOError("first writer started during inspection; retry")
+                raise RepositoryBusyError("first writer started during inspection; retry")
             raise StoreCorruptionError("nonempty repository lacks its coordination lock")
         return status

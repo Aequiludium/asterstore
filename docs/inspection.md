@@ -1,6 +1,6 @@
 # 诊断与显式检查（未发布）
 
-这些接口属于主分支的未发布增量，PyPI 0.1.0 尚不包含。使用现有 store 格式，不新增控制记录，也不自动运行。与其他治理操作一样，要求仓库初始化时显式启用 `lifecycle=True`。
+这些接口属于未发布增量，PyPI 0.1.0 尚不包含。使用现有 store 格式，不新增控制记录，也不自动运行。与其他治理操作一样，要求仓库初始化时显式启用 `lifecycle=True`。
 
 ## 按需查询
 
@@ -54,13 +54,24 @@ report = repo.governance.check(level="checksum", checksums={object_id: trusted_s
 
 format 与 checksum 是独立检查方式。核心不自带格式解码器；例如可传入一个调用 `polars.read_parquet_schema(path)` 的函数，但这只检查 Parquet 元数据，不证明所有行都可解码。业务质量和完整解码由调用方明确实现。
 
-检查只读，不写入基准，不修复或删除。registered 的物理路径必须通过 resources 显式提供；不能把某次外部可变数据检查的成功当成永久保证。符号链接数据文件不作为普通文件通过检查。已退役数据、未提交候选文件、未知数据文件不属于数据检查范围；检查不会通过扫目录猜测垃圾。
+检查只读，不写入基准，不修复或删除。registered 的 existence、format、checksum 检查必须通过 `resources={resource_id: root}` 显式提供物理资源根；缺少绑定时对应对象报告 `object_unavailable`，metadata 检查不需要资源映射；不能把某次外部可变数据检查的成功当成永久保证。符号链接数据文件不作为普通文件通过检查。已退役数据、未提交候选文件、未知数据文件不属于数据检查范围；检查不会通过扫目录猜测垃圾。
 
 `CheckReport` 记录请求级别、开始/结束 UTC 时间、是否协调、关系检查是否完成、目标对象、成功完成该级别的对象及问题。多个独立坏控制记录或缺失文件会分别报告；独立记录无误后再检查关系，关系层遇到首个错误停止，数据层不在元数据不可信时继续。它不是自动修复或穷尽所有关联错误的工具。
 
 ## 并发与成本
 
-inspect、check 及任务状态查询只打开已有 gc.lock，以非阻塞排他锁稳定控制状态，并阻止受管 GC 在数据检查期间删除对象。忙时 inspect 和任务状态查询抛 BlockingIOError，check 返回 busy 问题；调用方决定重试时机。已初始化但从未写入的空仓库可返回 `coordinated=False`，不为查询创建锁；检测到首次写入竞态则报告忙。
+inspect、check 及任务状态查询只打开已有 gc.lock，以非阻塞排他锁稳定控制状态，并阻止受管 GC 在数据检查期间删除对象。四个接口在锁被占用时统一抛 `RepositoryBusyError`（继承 `AsterStoreError`），不返回部分快照、任务状态或 CheckReport；调用方决定重试时机。已初始化但从未写入的空仓库可返回 `coordinated=False`，不为查询创建锁；检测到首次写入竞态也抛同一个错误。大提交或回收期间，诊断可能立即报忙；仓库规模和写入频率增加会延长这个窗口。非阻塞行为是有意选择，接口不自动等待或重试。
+
+```python
+from asterstore import RepositoryBusyError
+
+try:
+    report = repo.governance.check(level="existence")
+except RepositoryBusyError:
+    pass  # 本次未取得稳定观察；由调用方稍后重新调度。
+else:
+    print(report.ok, report.issues)
+```
 
 排他锁贯穿显式检查，长时间格式或内容检查会延迟发布与 GC，应在维护窗口运行。validator 应是纯读取函数，禁止重入本仓库的变更 API，否则可能等待自己持有的锁。检查不防御绕过库直接改文件，也不冻结 registered 数据。
 
@@ -75,3 +86,21 @@ inspect、check 及任务状态查询只打开已有 gc.lock，以非阻塞排�
 这样仍覆盖“完成记录已经可见，但最后一次目录 fsync 失败”的恢复窗口。删除依据和数据目录变更必须在写入 complete 之前完成同步，因此重放完成结果不需要重新同步全部历史。后续引用变化不会重新解释历史上的 protected 结果。
 
 完成态重试不再检查无关数据集、其他任务及全库保留关系的损坏；需要全仓验证时显式调用 check。任何新回收或未完成的回收恢复仍读取完整控制关系、持久化删除依据，然后才允许删除。这里没有减少实际删除前的持久化步骤，也没有改变磁盘格式。
+
+
+## 公开类型与证据
+
+调用入口是 `repo.governance` 上的方法。诊断的八个类型仅在
+`asterstore.governance.inspection` 导出，不在 `asterstore` 或
+`asterstore.governance` 重复导出。例如：
+
+```python
+from asterstore.governance.inspection import CheckReport, GovernanceSnapshot
+```
+
+这些不可变返回类型及其文档字段是公开契约；下划线模块属于内部实现。
+`RepositoryBusyError` 与其他公共异常一样从 `asterstore` 导入。
+
+`docs/validation/` 的原始 JSON 与分析报告保留在版本库和源码发行包中，以便核对
+工作负载、源指纹和历史性能结论；它们不进入安装 wheel，不由运行时读取，也不是
+性能保证或需要随每次改动重写的基准。新测量另存记录，不覆盖原始证据。

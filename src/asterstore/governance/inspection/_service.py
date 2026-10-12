@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from asterstore.errors import (
+    RepositoryBusyError,
     RepositoryNotInitializedError,
     StoreCorruptionError,
     UnsupportedCapabilityError,
@@ -37,7 +38,7 @@ def read_inventory(
     view = inventory(root, store, reader=reader)
     if not coordinated:
         if (root / ".asterstore/gc.lock").exists():
-            raise BlockingIOError("first writer started during inspection; retry")
+            raise RepositoryBusyError("first writer started during inspection; retry")
         if view.publications or view.requests or view.objects or view.plans:
             raise StoreCorruptionError("nonempty repository lacks its coordination lock")
     return view

@@ -58,3 +58,5 @@ registered 不能取得 OBJECTS 保留或数据删除权。普通 Binding 和 La
 - `governance.check(level="metadata", resources=None, validator=None, checksums=None)` 返回带范围、时间和问题列表的 `CheckReport`。
 
 详细的只读边界、并发行为和各级检查能力见[诊断与检查](inspection.md)。
+
+诊断接口 `inspect`、`check`、`collection_status`、`cleanup_status` 无法取得稳定观察时，统一抛 `RepositoryBusyError(AsterStoreError)`，不自动等待；调用方稍后重试。诊断返回类型从 `asterstore.governance.inspection` 导入，详情见[诊断与检查](inspection.md)。

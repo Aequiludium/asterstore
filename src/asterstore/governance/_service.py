@@ -30,15 +30,15 @@ class Governance:
     root: Path
 
     def inspect(self) -> GovernanceSnapshot:
-        """Read a coordinated control inventory; fail promptly if a writer holds the lock."""
+        """Read a control inventory; raise RepositoryBusyError on contention."""
         return inspection.inspect(self.root)
 
     def collection_status(self, operation_id: str) -> MaintenanceStatus:
-        """Read one fixed collection plan and its progress, without a store inventory."""
+        """Read one collection plan; raise RepositoryBusyError on contention."""
         return maintenance_status(self.root, operation_id, "collection")
 
     def cleanup_status(self, operation_id: str) -> MaintenanceStatus:
-        """Read one abandoned candidate's cleanup plan and progress."""
+        """Read one cleanup plan; raise RepositoryBusyError on contention."""
         return maintenance_status(self.root, operation_id, "cleanup")
 
     def check(
@@ -49,7 +49,7 @@ class Governance:
         validator: Callable[[Path], None] | None = None,
         checksums: Mapping[str, str] | None = None,
     ) -> CheckReport:
-        """Explicit validation; never create control files, repair, or grant deletion rights."""
+        """Validate read-only; raise RepositoryBusyError if coordination is unavailable."""
         return inspection.check(
             self.root,
             level=level,
