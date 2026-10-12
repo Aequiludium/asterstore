@@ -19,6 +19,7 @@ src/asterstore/
 ├── publishing/          # Candidate、对象创建权属、封存及恢复
 │   └── transactions/    # registered/managed 共用提交生效点
 ├── governance/          # 固定保留、扫描、退役、回收及恢复
+│   ├── inspection/      # 只读状态观察、保护原因与显式检查
 │   └── cleanup/         # 已放弃候选的清理
 ├── storage/             # 锁、精确删除、原子写入与同步
 │   └── registry/        # 控制路径、权威记录读写
@@ -29,4 +30,4 @@ registered 和 managed 是同一模型的两种管理方式，区别在对象创
 
 metadata 不做文件 I/O；storage 不决定业务或治理策略；publishing/registration/governance 编排显式状态转换。reading 只读取必要控制记录，已绑定成员选择没有治理 I/O。完整清单校验在声明构造与封存边界完成，候选逐成员添加使用增量索引。
 
-子包接口用于内部协作；公开入口以 [API](api.md) 为准。Schema 和 fixtures 是当前结构证据，权属、恢复、同步顺序与并发语义由行为测试验证。
+诊断返回类型公开于 `asterstore.governance.inspection`；其余子包接口用于内部协作。公开入口以 [API](api.md) 为准。Schema 和 fixtures 是当前结构证据，权属、恢复、同步顺序与并发语义由行为测试验证。

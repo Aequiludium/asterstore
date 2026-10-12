@@ -19,4 +19,4 @@ uv run --locked --extra polars python tools/check_distribution.py --polars --out
 
 性能脚本见 [benchmarks](../benchmarks/README.md)。CI 运行小规模 smoke，不以墙钟时间作为性能门槛。修改依赖用 `uv lock`，不手工调整解析结果。
 
-当前准备 `0.1.0`，Aster 的首个真实表生命周期验收见[接入记录](aster-integration.md)；保留[唯一格式边界](compatibility.md)。
+`0.1.0` 已发布，未发布增量见 CHANGELOG，Aster 的首个真实表生命周期验收见[接入记录](aster-integration.md)；保留[唯一格式边界](compatibility.md)。
