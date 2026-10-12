@@ -5,6 +5,10 @@ class AsterStoreError(Exception):
     """Base class for asterstore errors."""
 
 
+class RepositoryBusyError(AsterStoreError):
+    """A diagnostic could not obtain a stable observation; retry later."""
+
+
 class InvalidDeclarationError(AsterStoreError, ValueError):
     """A supplied declaration is structurally invalid."""
 
