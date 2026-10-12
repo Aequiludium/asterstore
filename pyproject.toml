@@ -16,7 +16,7 @@ Issues = "https://github.com/Aequiludium/asterstore/issues"
 Changelog = "https://github.com/Aequiludium/asterstore/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-polars = ["polars>=1.32,<2"]
+polars = ["polars>=1.32,<3"]
 
 [build-system]
 requires = ["uv_build>=0.10.7,<0.13"]
