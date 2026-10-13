@@ -1,10 +1,11 @@
 """One declaration model, lightweight reads, and explicit lifecycle operations."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
+from ._data_checks import Check
 from .errors import InvalidDeclarationError, RepositoryNotInitializedError
 from .governance import Governance
 from .metadata import Declaration, HistoryAccess
@@ -40,10 +41,19 @@ class Repository:
         *,
         publication_id: str | None = None,
         resources: Mapping[str, str | Path] | None = None,
+        check: Check = "none",
+        validator: Callable[[Path], None] | None = None,
+        checksums: Mapping[str, str] | None = None,
     ) -> Binding:
         """Read a committed declaration once; existing bindings remain unchanged."""
         return open_binding(
-            self.root, dataset_id, publication_id=publication_id, resources=resources
+            self.root,
+            dataset_id,
+            publication_id=publication_id,
+            resources=resources,
+            check=check,
+            validator=validator,
+            checksums=checksums,
         )
 
     def initialize(
@@ -76,25 +86,50 @@ class Repository:
         operation_id: str,
         expected_generation: int,
         durable: bool = True,
+        check: Check = "none",
+        resources: Mapping[str, str | Path] | None = None,
+        validator: Callable[[Path], None] | None = None,
+        checksums: Mapping[str, str] | None = None,
     ) -> DeclarationRecord:
-        """Persist a registered declaration without accessing its external data."""
+        """Register a declaration; external data access requires explicit checking."""
         return register(
             self.root,
             declaration,
             operation_id=operation_id,
             expected_generation=expected_generation,
             durable=durable,
+            check=check,
+            resources=resources,
+            validator=validator,
+            checksums=checksums,
         )
 
     def describe(self, dataset_id: str, *, publication_id: str | None = None) -> DeclarationRecord:
         return describe(self.root, dataset_id, publication_id=publication_id)
 
-    def list_datasets(self) -> tuple[str, ...]:
+    def list_datasets(self, *, include_decommissioned: bool = False) -> tuple[str, ...]:
         """Explicitly enumerate committed dataset IDs; never inspect data files."""
-        return list_datasets(self.root)
+        return list_datasets(self.root, include_decommissioned=include_decommissioned)
 
-    def resume_registration(self, operation_id: str, *, durable: bool = True) -> DeclarationRecord:
-        return resume_registration(self.root, operation_id, durable=durable)
+    def resume_registration(
+        self,
+        operation_id: str,
+        *,
+        durable: bool = True,
+        check: Check = "none",
+        resources: Mapping[str, str | Path] | None = None,
+        validator: Callable[[Path], None] | None = None,
+        checksums: Mapping[str, str] | None = None,
+    ) -> DeclarationRecord:
+        return resume_registration(
+            self.root,
+            operation_id,
+            durable=durable,
+            check=check,
+            resources=resources,
+            validator=validator,
+            checksums=checksums,
+        )
 
     def registration_status(self, operation_id: str) -> RegistrationStatus:
         return registration_status(self.root, operation_id)

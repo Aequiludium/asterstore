@@ -1,21 +1,26 @@
 """control paths and reads. Object data is never opened here."""
 
+from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
 
 from asterstore.errors import (
+    DatasetDecommissionedError,
     RepositoryNotInitializedError,
     StoreCorruptionError,
 )
 from asterstore.metadata.identity import MAX_IDENTIFIER_BYTES, validate_identifier
 from asterstore.metadata.protocol import (
+    DatasetTombstone,
     DeclarationRecord,
     ObjectRecord,
     StoreRecord,
     decode_declaration_record,
+    decode_head,
     decode_object_record,
     decode_store,
 )
+from asterstore.storage._archive import read_control
 
 
 def token(value: str) -> str:
@@ -59,25 +64,45 @@ def check_record(value: DeclarationRecord, store: StoreRecord) -> DeclarationRec
     return value
 
 
-def read_head(root: Path, store: StoreRecord, dataset_id: str) -> DeclarationRecord | None:
+def read_head_state(
+    root: Path, store: StoreRecord, dataset_id: str
+) -> DeclarationRecord | DatasetTombstone | None:
     try:
         data = head_path(root, dataset_id).read_bytes()
     except FileNotFoundError:
         return None
-    value = check_record(decode_declaration_record(data), store)
-    if value.declaration.dataset_id != dataset_id:
+    value = decode_head(data)
+    record = value.publication if isinstance(value, DatasetTombstone) else value
+    check_record(record, store)
+    if record.declaration.dataset_id != dataset_id:
         raise StoreCorruptionError("current identity differs from its path")
+    if isinstance(value, DatasetTombstone) and not store.decommissioning:
+        # A first decommission may enable the feature between the reader's marker
+        # and current reads. Refresh only this exceptional mixed-version observation.
+        refreshed = read_store(root)
+        if not refreshed.decommissioning or replace(
+            refreshed, archived=False, decommissioning=False
+        ) != replace(store, archived=False, decommissioning=False):
+            raise StoreCorruptionError("dataset tombstone requires dataset_decommission")
+    return value
+
+
+def read_head(root: Path, store: StoreRecord, dataset_id: str) -> DeclarationRecord | None:
+    value = read_head_state(root, store, dataset_id)
+    if isinstance(value, DatasetTombstone):
+        raise DatasetDecommissionedError(dataset_id, value.operation_id)
     return value
 
 
 def find_record(
     root: Path, store: StoreRecord, dataset_id: str, publication_id: str
 ) -> DeclarationRecord | None:
-    head = read_head(root, store, dataset_id)
+    state = read_head_state(root, store, dataset_id)
+    head = state.publication if isinstance(state, DatasetTombstone) else state
     if head is not None and head.declaration.publication_id == publication_id:
         return head
     try:
-        data = publication_path(root, dataset_id, publication_id).read_bytes()
+        data = read_control(publication_path(root, dataset_id, publication_id))
     except FileNotFoundError:
         return None
     value = check_record(decode_declaration_record(data), store)
@@ -93,7 +118,7 @@ def find_record(
 
 def read_operation(root: Path, store: StoreRecord, operation_id: str) -> DeclarationRecord | None:
     try:
-        data = operation_path(root, operation_id).read_bytes()
+        data = read_control(operation_path(root, operation_id))
     except FileNotFoundError:
         return None
     value = check_record(decode_declaration_record(data), store)
@@ -104,7 +129,7 @@ def read_operation(root: Path, store: StoreRecord, operation_id: str) -> Declara
 
 def read_object_record(root: Path, store: StoreRecord, object_id: str) -> ObjectRecord | None:
     try:
-        data = object_record_path(root, object_id).read_bytes()
+        data = read_control(object_record_path(root, object_id))
     except FileNotFoundError:
         return None
     value = decode_object_record(data)

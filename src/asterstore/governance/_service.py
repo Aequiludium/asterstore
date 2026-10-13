@@ -20,8 +20,17 @@ from . import _references, inspection
 from . import cleanup as _cleanup
 from ._abandonment import sync_candidate_evidence
 from ._collection import GovernancePreview, GovernanceResult, collect, preview
+from ._compaction import CompactionResult, compact
+from ._decommission import (
+    DatasetStatus,
+    DecommissionResult,
+    dataset_status,
+    decommission,
+    decommission_status,
+)
 from .cleanup import CleanupPreview, CleanupResult
 from .inspection import CheckLevel, CheckReport, GovernanceSnapshot, MaintenanceStatus
+from .inspection._candidates import CandidateInspection, inspect_candidate
 from .inspection._queries import maintenance_status
 
 
@@ -29,9 +38,30 @@ from .inspection._queries import maintenance_status
 class Governance:
     root: Path
 
+    def decommission(self, operation_id: str, *, datasets: Mapping[str, int]) -> DecommissionResult:
+        """Permanently offline a fixed batch at the specified generations; no data deletion."""
+        return decommission(self.root, operation_id, datasets)
+
+    def resume_decommission(self, operation_id: str) -> DecommissionResult:
+        return decommission(self.root, operation_id, None)
+
+    def decommission_status(self, operation_id: str) -> DecommissionResult:
+        return decommission_status(self.root, operation_id)
+
+    def dataset_status(self, dataset_id: str) -> DatasetStatus:
+        return dataset_status(self.root, dataset_id)
+
+    def compact(self, operation_id: str, *, quiescent: bool) -> CompactionResult:
+        """Archive terminal control bodies in an explicit stopped-writer maintenance window."""
+        return compact(self.root, operation_id, quiescent=quiescent)
+
     def inspect(self) -> GovernanceSnapshot:
         """Read a control inventory; raise RepositoryBusyError on contention."""
         return inspection.inspect(self.root)
+
+    def inspect_candidate(self, operation_id: str) -> CandidateInspection:
+        """Observe declared/unknown entries without retaining, repairing or deleting."""
+        return inspect_candidate(self.root, operation_id)
 
     def collection_status(self, operation_id: str) -> MaintenanceStatus:
         """Read one collection plan; raise RepositoryBusyError on contention."""

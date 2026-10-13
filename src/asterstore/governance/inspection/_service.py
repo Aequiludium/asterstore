@@ -89,6 +89,7 @@ def snapshot(view: Inventory, coordinated: bool) -> GovernanceSnapshot:
         status_from_records(
             request,
             current=current.get(request.dataset_id),
+            decommissioned=request.dataset_id in view.decommissioned,
             committed=view.publications.get((request.dataset_id, request.publication_id)),
             sealed=view.seals.get(op),
             abandoned=op in view.abandoned,
@@ -149,6 +150,7 @@ def snapshot(view: Inventory, coordinated: bool) -> GovernanceSnapshot:
             )
             for oid, obj in sorted(view.objects.items())
         ),
+        tuple(value for _, value in sorted(view.decommissioned.items())),
     )
 
 

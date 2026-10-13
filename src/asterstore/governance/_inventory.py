@@ -8,7 +8,9 @@ from pathlib import Path
 from asterstore.errors import StoreCorruptionError
 from asterstore.metadata.capabilities import Management, RetentionScope
 from asterstore.metadata.protocol import (
+    DatasetTombstone,
     DeclarationRecord,
+    DecommissionPlan,
     FixedRetention,
     GovernancePlan,
     GovernanceProgress,
@@ -19,8 +21,10 @@ from asterstore.metadata.protocol import (
     RetiredDeclaration,
     StoreRecord,
     decode_declaration_record,
+    decode_decommission_plan,
     decode_governance_plan,
     decode_governance_progress,
+    decode_head,
     decode_managed_abandonment,
     decode_managed_cleanup_plan,
     decode_managed_cleanup_progress,
@@ -29,6 +33,7 @@ from asterstore.metadata.protocol import (
     decode_retention,
     decode_retired,
 )
+from asterstore.storage._archive import read_control, validate_layout
 from asterstore.storage.registry import (
     collection_directory,
     object_record_path,
@@ -68,7 +73,7 @@ def control_bytes(path: Path, paths: set[Path]) -> bytes:
     if not stat.S_ISREG(path.lstat().st_mode):
         raise StoreCorruptionError(f"control record is not ordinary: {path}")
     paths.add(path)
-    return path.read_bytes()
+    return read_control(path)
 
 
 def checked(value: DeclarationRecord, store: StoreRecord) -> DeclarationRecord:
@@ -93,6 +98,8 @@ def check_control_root(root: Path) -> None:
         "fixed-retentions",
         "retired",
         "collections",
+        "archives",
+        "decommissions",
     }
     if {p.name for p in entries(control)} - allowed:
         raise StoreCorruptionError("unknown top-level control record")
@@ -122,6 +129,8 @@ class Inventory:
     collection_progress: dict[str, GovernanceProgress]
     cleanup_plans: dict[str, ManagedCleanupPlan]
     cleanup_progress: dict[str, ManagedCleanupProgress]
+    decommissioned: dict[str, DatasetTombstone]
+    decommission_plans: dict[str, DecommissionPlan]
 
 
 def inventory(root: Path, store: StoreRecord, *, reader: ControlReader | None = None) -> Inventory:
@@ -140,6 +149,27 @@ def inventory(root: Path, store: StoreRecord, *, reader: ControlReader | None = 
     metadata_roots: set[PublicationKey] = set()
     control = root / ".asterstore"
     check_control_root(root)
+    decommissioned: dict[str, DatasetTombstone] = {}
+    decommission_plans: dict[str, DecommissionPlan] = {}
+    if (
+        (control / "decommissions").exists() or (control / "decommissions").is_symlink()
+    ) and not store.decommissioning:
+        raise StoreCorruptionError("decommission layout requires dataset_decommission feature")
+    for path in entries(control / "decommissions"):
+        decommission_plan = read(path, decode_decommission_plan)
+        if (
+            not store.decommissioning
+            or decommission_plan.store_id != store.store_id
+            or path.name != token(decommission_plan.operation_id) + ".json"
+        ):
+            raise StoreCorruptionError("decommission plan identity or feature mismatch")
+        decommission_plans[decommission_plan.operation_id] = decommission_plan
+    if (
+        (control / "archives").exists() or (control / "archives").is_symlink()
+    ) and not store.archived:
+        raise StoreCorruptionError("archive layout requires control_archive feature")
+    if store.archived:
+        validate_layout(control, store.store_id)
     for path in entries(control / "registrations"):
         value = checked(read(path, decode_declaration_record), store)
         if path != operation_path(root, value.operation_id):
@@ -161,11 +191,18 @@ def inventory(root: Path, store: StoreRecord, *, reader: ControlReader | None = 
                 # A fixed initial request explains an empty directory, never real history.
                 continue
             raise StoreCorruptionError("dataset is missing current")
-        head = checked(read(head_path, decode_declaration_record), store)
+        state = read(head_path, decode_head)
+        head = checked(state.publication if isinstance(state, DatasetTombstone) else state, store)
+        if isinstance(state, DatasetTombstone):
+            if not store.decommissioning:
+                raise StoreCorruptionError("dataset tombstone requires dataset_decommission")
+            decommissioned[head.declaration.dataset_id] = state
+            metadata_roots.add(key(head))
         if directory.name != token(head.declaration.dataset_id):
             raise StoreCorruptionError("dataset path identity mismatch")
         publications[key(head)] = head
-        current.add(key(head))
+        if not isinstance(state, DatasetTombstone):
+            current.add(key(head))
         generations = {head.generation: key(head)}
         for path in entries(directory / "history"):
             value = checked(read(path, decode_declaration_record), store)
@@ -180,6 +217,20 @@ def inventory(root: Path, store: StoreRecord, *, reader: ControlReader | None = 
                 raise StoreCorruptionError("history differs from current")
             publications[key(value)] = value
             generations[value.generation] = key(value)
+        if isinstance(state, DatasetTombstone):
+            original = directory / "history" / (token(head.declaration.publication_id) + ".json")
+            if original not in paths:
+                raise StoreCorruptionError("decommissioned dataset lacks original history")
+    for decommission_plan in decommission_plans.values():
+        if any(publications.get(key(p)) != p for p in decommission_plan.targets):
+            raise StoreCorruptionError("decommission plan conflicts with publication evidence")
+    planned_targets = {
+        op: {p.declaration.dataset_id: p for p in plan.targets}
+        for op, plan in decommission_plans.items()
+    }
+    for dataset_id, tombstone in decommissioned.items():
+        if planned_targets.get(tombstone.operation_id, {}).get(dataset_id) != tombstone.publication:
+            raise StoreCorruptionError("dataset tombstone lacks matching decommission plan")
     for path in entries(control / "object-records"):
         object_record = read(path, decode_object_record)
         if (
@@ -442,4 +493,6 @@ def inventory(root: Path, store: StoreRecord, *, reader: ControlReader | None = 
         {p.operation_id: p for p in progress_records},
         cleanup_plans,
         cleanup_states,
+        decommissioned,
+        decommission_plans,
     )

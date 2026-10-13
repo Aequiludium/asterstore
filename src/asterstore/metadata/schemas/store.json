@@ -189,6 +189,41 @@
               "registered",
               "managed",
               "lifecycle"
+            ],
+            [
+              "registered",
+              "lifecycle",
+              "control_archive"
+            ],
+            [
+              "registered",
+              "managed",
+              "lifecycle",
+              "control_archive"
+            ],
+            [
+              "registered",
+              "lifecycle",
+              "dataset_decommission"
+            ],
+            [
+              "registered",
+              "managed",
+              "lifecycle",
+              "dataset_decommission"
+            ],
+            [
+              "registered",
+              "lifecycle",
+              "control_archive",
+              "dataset_decommission"
+            ],
+            [
+              "registered",
+              "managed",
+              "lifecycle",
+              "control_archive",
+              "dataset_decommission"
             ]
           ]
         },
@@ -746,6 +781,143 @@
         "complete"
       ],
       "additionalProperties": false
+    },
+    "archive_reference": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "kind": {
+          "const": "archive_reference"
+        },
+        "archive": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "archive",
+        "sha256",
+        "offset",
+        "length",
+        "size"
+      ],
+      "additionalProperties": false
+    },
+    "control_checkpoint": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "kind": {
+          "const": "control_checkpoint"
+        },
+        "store_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "records": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/archive_reference"
+          },
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^(?:registrations/[0-9a-f]{64}\\.json|datasets/[0-9a-f]{64}/history/[0-9a-f]{64}\\.json|managed-candidates/[0-9a-f]{64}/(?:request|sealed|protection|abandoned|cleanup-plan|cleanup-progress)\\.json|retired/[0-9a-f]{64}/[0-9a-f]{64}\\.json|collections/[0-9a-f]{64}/(?:plan|progress)\\.json)$"
+          }
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "store_id",
+        "operation_id",
+        "records"
+      ],
+      "additionalProperties": false
+    },
+    "dataset_tombstone": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "dataset_tombstone"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "publication": {
+          "$ref": "#/$defs/publication"
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "operation_id",
+        "publication"
+      ],
+      "additionalProperties": false
+    },
+    "decommission_plan": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "decommission_plan"
+        },
+        "store_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/publication"
+          }
+        }
+      },
+      "required": [
+        "format_version",
+        "kind",
+        "store_id",
+        "operation_id",
+        "targets"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [
@@ -781,6 +953,18 @@
     },
     {
       "$ref": "#/$defs/managed_cleanup_progress"
+    },
+    {
+      "$ref": "#/$defs/archive_reference"
+    },
+    {
+      "$ref": "#/$defs/control_checkpoint"
+    },
+    {
+      "$ref": "#/$defs/dataset_tombstone"
+    },
+    {
+      "$ref": "#/$defs/decommission_plan"
     }
   ]
 }

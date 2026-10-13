@@ -212,15 +212,12 @@ def test_stale_candidate_never_rebases_or_installs_data(tmp_path):
     assert not (managed_data_root(tmp_path) / token("loser")).exists()
 
 
-@pytest.mark.parametrize("damage", ["missing", "extra", "symlink", "directory"])
+@pytest.mark.parametrize("damage", ["missing", "symlink", "directory"])
 def test_seal_checks_declared_files_only_at_write_boundary(tmp_path, damage):
     repo = create(tmp_path)
     with prepare(repo) as candidate:
         path = candidate.path("key", relative_path="data.bin")
-        if damage == "extra":
-            path.write_bytes(b"a")
-            path.with_name("untracked.bin").write_bytes(b"b")
-        elif damage == "symlink":
+        if damage == "symlink":
             outside = tmp_path / "external.bin"
             outside.write_bytes(b"unowned")
             path.symlink_to(outside)

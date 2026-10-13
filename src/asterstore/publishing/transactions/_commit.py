@@ -28,6 +28,7 @@ from asterstore.storage.registry import (
     operation_path,
     publication_path,
     read_head,
+    read_head_state,
     read_managed_request,
     read_object_record,
     read_operation,
@@ -44,7 +45,20 @@ class RegistrationStatus:
     record: DeclarationRecord
 
 
-def _objects(root: Path, store: StoreRecord, record: DeclarationRecord) -> tuple[ObjectRecord, ...]:
+def _evidence(
+    root: Path, store: StoreRecord, object_id: str, cache: dict[str, ObjectRecord | None]
+) -> ObjectRecord | None:
+    if object_id not in cache:
+        cache[object_id] = read_object_record(root, store, object_id)
+    return cache[object_id]
+
+
+def _objects(
+    root: Path,
+    store: StoreRecord,
+    record: DeclarationRecord,
+    cache: dict[str, ObjectRecord | None],
+) -> tuple[ObjectRecord, ...]:
     result = []
     managed = record.declaration.capabilities.management is Management.MANAGED
     for obj in record.declaration.files.objects:
@@ -53,7 +67,7 @@ def _objects(root: Path, store: StoreRecord, record: DeclarationRecord) -> tuple
             if obj.locator.relative_path.startswith(token(record.operation_id) + "/"):
                 creator = record.operation_id
             else:
-                previous = read_object_record(root, store, obj.object_id)
+                previous = _evidence(root, store, obj.object_id, cache)
                 if previous is None or previous.creator_operation_id is None:
                     raise StoreCorruptionError("reused object lacks managed creator evidence")
                 creator = previous.creator_operation_id
@@ -82,12 +96,15 @@ def _committed(
 def _sync_result(
     root: Path, store: StoreRecord, desired: DeclarationRecord, *, durable: bool
 ) -> None:
+    # Cache only within this coordinated operation, never across lock boundaries.
+    cache: dict[str, ObjectRecord | None] = {}
+    objects = _objects(root, store, desired, cache)
     # A committed response must not hide a lost or conflicting identity registry.
-    for obj in _objects(root, store, desired):
-        if read_object_record(root, store, obj.object_id) != obj:
+    for obj in objects:
+        if _evidence(root, store, obj.object_id, cache) != obj:
             raise StoreCorruptionError("committed publication lacks its object identity evidence")
     if durable:
-        head = read_head(root, store, desired.declaration.dataset_id)
+        head = read_head_state(root, store, desired.declaration.dataset_id)
         path = (
             head_path(root, desired.declaration.dataset_id)
             if head == desired
@@ -101,10 +118,7 @@ def _sync_result(
                 marker_path(root),
                 operation_path(root, desired.operation_id),
                 path,
-                *(
-                    object_record_path(root, obj.object_id)
-                    for obj in _objects(root, store, desired)
-                ),
+                *(object_record_path(root, obj.object_id) for obj in objects),
             ),
         )
 
@@ -160,8 +174,9 @@ def commit_record(
                 raise StoreCorruptionError("current is missing but committed history exists")
         new_objects = []
         existing_paths = []
-        for obj in _objects(root, store, desired):
-            existing = read_object_record(root, store, obj.object_id)
+        cache: dict[str, ObjectRecord | None] = {}
+        for obj in _objects(root, store, desired, cache):
+            existing = _evidence(root, store, obj.object_id, cache)
             if existing is not None and existing != obj:
                 raise PublicationConflictError(
                     f"object identity cannot be rebound: {obj.object_id}"
@@ -209,11 +224,80 @@ def registration_status(root: Path, operation_id: str) -> RegistrationStatus:
                 return RegistrationStatus("committed", plan)
         except PublicationConflictError:
             return RegistrationStatus("conflict", plan)
-        head = read_head(root, store, plan.declaration.dataset_id)
+        from asterstore.metadata.protocol import DatasetTombstone
+
+        head = read_head_state(root, store, plan.declaration.dataset_id)
+        if isinstance(head, DatasetTombstone):
+            return RegistrationStatus("conflict", plan)
         if (0 if head is None else head.generation) != plan.expected_generation:
             return RegistrationStatus("conflict", plan)
-        for obj in _objects(root, store, plan):
-            existing = read_object_record(root, store, obj.object_id)
+        cache: dict[str, ObjectRecord | None] = {}
+        for obj in _objects(root, store, plan, cache):
+            existing = _evidence(root, store, obj.object_id, cache)
             if existing is not None and existing != obj:
                 return RegistrationStatus("conflict", plan)
         return RegistrationStatus("planned", plan)
+
+
+def checked_commit(
+    root: Path,
+    desired: DeclarationRecord,
+    check_data: Callable[[], None],
+    *,
+    durable: bool,
+    install: Callable[[], None] | None = None,
+) -> DeclarationRecord:
+    """Preflight under coordination, check outside it, then perform the normal commit."""
+    from asterstore.errors import DataCheckError
+
+    if type(durable) is not bool:
+        raise TypeError("durable must be a boolean")
+    with file_lock(root / ".asterstore/gc.lock", exclusive=False):
+        store = read_store(root)
+        desired.check_store(store)
+        managed = desired.declaration.capabilities.management is Management.MANAGED
+        request = read_managed_request(root, store, desired.operation_id)
+        if managed:
+            require_not_abandoned(root, store, desired.operation_id)
+            if request is None or request.declaration_record(desired.declaration.files) != desired:
+                raise StoreCorruptionError("managed commit lacks matching candidate request")
+        elif request is not None:
+            raise PublicationConflictError("operation ID is reserved by a managed candidate")
+        plan = read_operation(root, store, desired.operation_id)
+        if plan is not None and plan != desired:
+            raise PublicationConflictError("operation ID was used with a different request")
+        committed = _committed(root, store, desired)
+        if committed is not None:
+            require_available(root, store, committed)
+            if plan != desired:
+                raise StoreCorruptionError("committed publication lacks its original operation")
+        else:
+            head = read_head(root, store, desired.declaration.dataset_id)
+            if (0 if head is None else head.generation) != desired.expected_generation:
+                raise PublicationConflictError("generation changed before checking")
+            if (
+                head is not None
+                and head.declaration.capabilities != desired.declaration.capabilities
+            ):
+                raise PublicationConflictError("dataset capabilities cannot change")
+        cache: dict[str, ObjectRecord | None] = {}
+        for obj in _objects(root, store, desired, cache):
+            existing = _evidence(root, store, obj.object_id, cache)
+            if existing is not None and existing != obj:
+                raise PublicationConflictError("object identity cannot be rebound")
+            if committed is not None and existing != obj:
+                raise StoreCorruptionError("committed publication lacks object identity evidence")
+    try:
+        check_data()
+    except DataCheckError as exc:
+        exc.durability = "not_completed" if durable else "not_requested"
+        try:
+            with file_lock(root / ".asterstore/gc.lock", exclusive=False):
+                store = read_store(root)
+                committed = _committed(root, store, desired)
+                exc.commit_state = "committed" if committed is not None else "not_attempted"
+        except Exception as state_error:
+            exc.commit_state = "unknown"
+            exc.state_error = str(state_error)
+        raise
+    return commit_record(root, desired, durable=durable, install=install)

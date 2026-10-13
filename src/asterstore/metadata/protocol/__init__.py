@@ -1,5 +1,13 @@
 """authority records, strict codecs and explicit numeric boundaries."""
 
+from ._archive import (
+    ArchiveReference,
+    ControlCheckpoint,
+    decode_checkpoint,
+    decode_reference,
+    encode_checkpoint,
+    encode_reference,
+)
 from ._cleanup import (
     CleanupLocation,
     CleanupOutcome,
@@ -19,6 +27,15 @@ from ._codec import (
     encode_managed_request,
     encode_object_record,
     encode_store,
+)
+from ._decommission import (
+    DatasetTombstone,
+    DecommissionPlan,
+    decode_decommission_plan,
+    decode_head,
+    decode_tombstone,
+    encode_decommission_plan,
+    encode_tombstone,
 )
 from ._governance import (
     FixedRetention,
@@ -46,6 +63,19 @@ from ._models import (
 )
 
 __all__ = [
+    "DatasetTombstone",
+    "DecommissionPlan",
+    "decode_head",
+    "decode_tombstone",
+    "encode_tombstone",
+    "decode_decommission_plan",
+    "encode_decommission_plan",
+    "ArchiveReference",
+    "ControlCheckpoint",
+    "decode_checkpoint",
+    "decode_reference",
+    "encode_checkpoint",
+    "encode_reference",
     "CleanupLocation",
     "CleanupOutcome",
     "ManagedCleanupPlan",

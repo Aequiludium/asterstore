@@ -23,6 +23,7 @@ from asterstore.storage import (
     immutable_write,
     sync_control_files,
 )
+from asterstore.storage._archive import read_control
 from asterstore.storage.registry import (
     lifecycle_store,
     managed_data_root,
@@ -112,7 +113,7 @@ def choose_plan(root: Path, request: ManagedRequest, view: Inventory) -> Managed
         raise StoreCorruptionError("both private and installed candidate namespaces exist")
     if has_installed or (not has_private and (private.parent / "sealed.json").is_file()):
         try:
-            seal = decode_declaration_record((private.parent / "sealed.json").read_bytes())
+            seal = decode_declaration_record(read_control(private.parent / "sealed.json"))
         except FileNotFoundError as exc:
             raise StoreCorruptionError(
                 "installed cleanup requires sealed creation evidence"

@@ -10,6 +10,7 @@ from asterstore.metadata.protocol import (
     decode_managed_cleanup_plan,
     decode_managed_cleanup_progress,
 )
+from asterstore.storage._archive import read_control
 
 from ._governance import read_abandoned
 from ._managed import managed_directory
@@ -20,7 +21,7 @@ def read_cleanup_plan(
 ) -> ManagedCleanupPlan | None:
     path = managed_directory(root, operation_id) / "cleanup-plan.json"
     try:
-        data = path.read_bytes()
+        data = read_control(path)
     except FileNotFoundError:
         return None
     value = decode_managed_cleanup_plan(data)
@@ -36,7 +37,7 @@ def read_cleanup_plan(
 def read_cleanup_progress(root: Path, plan: ManagedCleanupPlan) -> ManagedCleanupProgress:
     path = managed_directory(root, plan.request.operation_id) / "cleanup-progress.json"
     try:
-        data = path.read_bytes()
+        data = read_control(path)
     except FileNotFoundError:
         return ManagedCleanupProgress(plan.request.store_id, plan.request.operation_id)
     value = decode_managed_cleanup_progress(data)

@@ -1,5 +1,6 @@
 """Explicit initialization; never reinterpret an existing repository."""
 
+from dataclasses import replace
 from pathlib import Path
 
 from asterstore.errors import (
@@ -21,7 +22,7 @@ def initialize_store(root: Path, desired: StoreRecord, *, durable: bool = True) 
     except RepositoryNotInitializedError:
         pass
     else:
-        if current != desired:
+        if replace(current, archived=False, decommissioning=False) != desired:
             raise PublicationConflictError("store identity or resource namespace already exists")
         if durable:
             sync_control_files(root, (marker_path(root),))
@@ -41,7 +42,7 @@ def initialize_store(root: Path, desired: StoreRecord, *, durable: bool = True) 
                 ) from None
             atomic_write(marker_path(root), encode_store(desired), durable=durable)
             current = desired
-        if current != desired:
+        if replace(current, archived=False, decommissioning=False) != desired:
             raise PublicationConflictError("store identity or resource namespace already exists")
         if durable:
             sync_control_files(root, (marker_path(root),))

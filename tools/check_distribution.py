@@ -30,7 +30,7 @@ assert installed.is_relative_to(pathlib.Path(sys.prefix).resolve()), installed
 assert installed.with_name('py.typed').is_file()
 schema_path = importlib.resources.files('asterstore.metadata').joinpath('schemas/store.json')
 schema = json.loads(schema_path.read_text())
-assert len(schema['oneOf']) == 11
+assert len(schema['oneOf']) == 15
 assert importlib.util.find_spec('jsonschema') is None
 assert importlib.metadata.version('asterstore') == sys.argv[1]
 distribution = importlib.metadata.distribution('asterstore')
@@ -139,7 +139,38 @@ assert managed.governance.check(level='existence').ok
 assert managed.governance.check(
     level='checksum', checksums={current_oid: hashlib.sha256(b'next generation').hexdigest()},
 ).ok
+archive_repo = asterstore.Repository(pathlib.Path.cwd() / 'archive')
+archive_repo.initialize(store_id='archive-installed', resource_ids=['owned'],
+                        managed_resource_id='owned', lifecycle=True)
+for generation in range(3):
+    with archive_repo.prepare('data', publication_id=f'p{generation}',
+                              operation_id=f'op{generation}', expected_generation=generation,
+                              history=asterstore.HistoryAccess.VERSIONED, durable=False) as writer:
+        for index in range(8):
+            writer.write_bytes(str(index), b'archive data', relative_path=f'{index}.bin')
+        writer.commit()
+archived_record = archive_repo.describe('data', publication_id='p0')
+compacted = archive_repo.governance.compact('archive', quiescent=True)
+assert compacted.complete and compacted.saved_bytes > 0
+assert compacted == archive_repo.governance.compact('archive', quiescent=True)
+assert archive_repo.describe('data', publication_id='p0') == archived_record
+with archive_repo.resume('op0', durable=True) as writer:
+    assert writer.commit() == archived_record
+archive_repo.governance.inspect()
+assert len(archive_repo.open('data').files()) == 8
 print('Isolated installation OK:', installed)
+offline = managed.governance.decommission('expire', datasets={'result': 2})
+assert offline.complete and not offline.conflicts
+assert managed.governance.resume_decommission('expire') == offline
+assert managed.governance.check().ok
+try:
+    managed.open('result')
+except asterstore.DatasetDecommissionedError:
+    pass
+else:
+    raise AssertionError('offline dataset opened')
+assert managed.governance.collect('offline-gc').deleted_objects
+
 """
 
 
@@ -223,6 +254,9 @@ def main() -> None:
                 "tests/fixtures/protocol/cleanup/plan.json",
                 "tools/check_protocol.py",
                 "examples/cleanup.py",
+                "examples/archive_history.py",
+                "docs/control-compaction.md",
+                "tests/test_compaction.py",
                 "docs/releasing.md",
                 "docs/publishing.md",
                 "tools/check_distribution.py",

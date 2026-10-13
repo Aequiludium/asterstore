@@ -1,5 +1,6 @@
 """Explicit read-only observations and opt-in validation."""
 
+from ._candidates import CandidateFileIssue, CandidateInspection, inspect_candidate
 from ._checks import check
 from ._models import (
     CheckIssue,
@@ -14,6 +15,9 @@ from ._models import (
 from ._service import inspect
 
 __all__ = [
+    "CandidateFileIssue",
+    "CandidateInspection",
+    "inspect_candidate",
     "CheckIssue",
     "CheckLevel",
     "CheckReport",

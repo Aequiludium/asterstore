@@ -2,12 +2,13 @@
 
 import os
 import stat
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import ExitStack
 from pathlib import Path
 from types import TracebackType
 from uuid import uuid4
 
+from asterstore._data_checks import Check, CheckOptions
 from asterstore.errors import (
     CandidateStateError,
     HistoryUnavailableError,
@@ -29,6 +30,7 @@ from asterstore.metadata.protocol import (
     encode_managed_request,
 )
 from asterstore.publishing.transactions import commit_record
+from asterstore.publishing.transactions._commit import checked_commit
 from asterstore.storage import (
     atomic_write,
     ensure_directory,
@@ -37,6 +39,7 @@ from asterstore.storage import (
     sync_control_files,
     sync_directory,
 )
+from asterstore.storage._archive import read_control
 from asterstore.storage.registry import (
     find_record,
     managed_data_root,
@@ -108,7 +111,7 @@ class Candidate:
                     self._request = previous
                     try:
                         self._sealed = decode_declaration_record(
-                            (self._directory / "sealed.json").read_bytes()
+                            read_control(self._directory / "sealed.json")
                         )
                     except FileNotFoundError as exc:
                         raise CandidateStateError("unsealed candidate cannot be resumed") from exc
@@ -123,6 +126,7 @@ class Candidate:
                 else:
                     assert self._request is not None
                     self._request.declaration_record(self._files).check_store(store)
+                    read_head(self._root, store, self._request.dataset_id)
                     if previous is not None or read_operation(self._root, store, self.operation_id):
                         raise PublicationConflictError(
                             "operation already reserved; resume sealed work"
@@ -265,20 +269,34 @@ class Candidate:
         )
 
     def _verify_files(self, base: Path) -> None:
-        if not base.is_dir() or base.is_symlink():
-            raise StoreCorruptionError("managed candidate files are missing or not a directory")
-        files = set(self._new_paths(base))
-        found = set()
-        for path in base.rglob("*"):
-            mode = path.lstat().st_mode
-            if stat.S_ISREG(mode):
-                found.add(path)
-            elif not stat.S_ISDIR(mode):
-                raise StoreCorruptionError("managed files must be ordinary files and directories")
-        if files != found:
-            raise StoreCorruptionError("staged files differ from declared membership")
+        """Minimum installation constraints, never a recursive candidate inventory."""
+        files = self._new_paths(base)
+        directories: set[Path] = set()
+        try:
+            if not stat.S_ISDIR(self._root.lstat().st_mode):
+                raise OSError("repository root is not an ordinary directory")
+            directories.add(self._root)
+            for directory in (base, *(path.parent for path in files)):
+                pending = []
+                parent = directory
+                while parent not in directories:
+                    pending.append(parent)
+                    parent = parent.parent
+                for parent in reversed(pending):
+                    if not stat.S_ISDIR(parent.lstat().st_mode):
+                        raise OSError(f"candidate parent is not an ordinary directory: {parent}")
+                    directories.add(parent)
+            for path in files:
+                if not stat.S_ISREG(path.lstat().st_mode):
+                    raise OSError(f"declared candidate object is not an ordinary file: {path}")
+        except OSError as exc:
+            raise StoreCorruptionError(str(exc)) from exc
+
+    def _sync_files(self, base: Path) -> None:
         if self._durable:
-            sync_control_files(self._root, tuple(files) + (self._directory / "request.json",))
+            sync_control_files(
+                self._root, self._new_paths(base) + (self._directory / "request.json",)
+            )
             sync_directory(base)
 
     def seal(self) -> DeclarationRecord:
@@ -289,6 +307,7 @@ class Candidate:
             self._files = self._members.snapshot()
             self._pending = request.declaration_record(self._files)
         self._verify_files(self._directory / "files")
+        self._sync_files(self._directory / "files")
         with file_lock(self._root / ".asterstore/gc.lock", exclusive=False):
             immutable_write(
                 self._directory / "sealed.json",
@@ -304,7 +323,9 @@ class Candidate:
         ensure_directory(destination.parent, durable=self._durable)
         if staged.exists() and destination.exists():
             raise StoreCorruptionError("both staged and installed objects exist")
-        self._verify_files(staged if staged.exists() else destination)
+        base = staged if staged.exists() else destination
+        self._verify_files(base)
+        self._sync_files(base)
         if self._durable:
             sync_control_files(
                 self._root, (self._directory / "request.json", self._directory / "sealed.json")
@@ -315,7 +336,34 @@ class Candidate:
             sync_directory(destination.parent)
             sync_directory(self._directory)
 
-    def commit(self) -> DeclarationRecord:
+    def commit(
+        self,
+        *,
+        check: Check = "none",
+        validator: Callable[[Path], None] | None = None,
+        checksums: Mapping[str, str] | None = None,
+    ) -> DeclarationRecord:
+        options = CheckOptions(check, validator, checksums)
         self._active()
         record = self.seal()
-        return commit_record(self._root, record, durable=self._durable, install=self._install)
+        if check == "none":
+            return commit_record(self._root, record, durable=self._durable, install=self._install)
+
+        def check_data() -> None:
+            staged = self._directory / "files"
+            installed = managed_data_root(self._root)
+            prefix = token(self.operation_id) + "/"
+            base = staged if staged.exists() else installed / token(self.operation_id)
+            paths = {
+                obj.object_id: (
+                    base / obj.locator.relative_path.removeprefix(prefix)
+                    if obj.locator.relative_path.startswith(prefix)
+                    else installed / obj.locator.relative_path
+                )
+                for obj in record.declaration.files.objects
+            }
+            options.run(record, paths, managed_root=self._root)
+
+        return checked_commit(
+            self._root, record, check_data, durable=self._durable, install=self._install
+        )

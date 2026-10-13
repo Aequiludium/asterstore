@@ -3,23 +3,28 @@
 from pathlib import Path
 
 from asterstore.errors import StoreCorruptionError
-from asterstore.metadata.protocol import decode_declaration_record
+from asterstore.metadata.protocol import DatasetTombstone, decode_head
 from asterstore.storage import file_lock
 from asterstore.storage.registry import read_store, token
 
 
-def list_datasets(root: Path) -> tuple[str, ...]:
+def list_datasets(root: Path, *, include_decommissioned: bool = False) -> tuple[str, ...]:
     """List committed dataset identities, reading heads only, never object files.
 
     Uncommitted first-publication directories have no head and are omitted. This
     is a discovery query, not an audit or an atomic snapshot of all dataset heads.
     """
+    if type(include_decommissioned) is not bool:
+        raise TypeError("include_decommissioned must be a boolean")
     read_store(root)
     with file_lock(root / ".asterstore/gc.lock", exclusive=False):
         store = read_store(root)
         result = []
         for path in (root / ".asterstore/datasets").glob("*/current.json"):
-            value = decode_declaration_record(path.read_bytes())
+            state = decode_head(path.read_bytes())
+            if isinstance(state, DatasetTombstone) and not store.decommissioning:
+                raise StoreCorruptionError("dataset tombstone requires dataset_decommission")
+            value = state.publication if isinstance(state, DatasetTombstone) else state
             try:
                 value.check_store(store)
             except ValueError as exc:
@@ -27,5 +32,6 @@ def list_datasets(root: Path) -> tuple[str, ...]:
             identity = value.declaration.dataset_id
             if path.parent.name != token(identity):
                 raise StoreCorruptionError("dataset path identity mismatch")
-            result.append(identity)
+            if include_decommissioned or not isinstance(state, DatasetTombstone):
+                result.append(identity)
         return tuple(sorted(result))

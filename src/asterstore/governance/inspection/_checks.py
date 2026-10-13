@@ -1,6 +1,5 @@
 """Opt-in checks with explicit coverage; never infer deletion authority or repair."""
 
-import hashlib
 import os
 import re
 import stat
@@ -8,6 +7,7 @@ from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 
+from asterstore._data_checks import checksum, regular_file
 from asterstore.errors import AsterStoreError, RepositoryBusyError
 from asterstore.metadata import protocol as codec
 from asterstore.reading.resources import ResourceMap
@@ -24,6 +24,8 @@ def decoder(parts: tuple[str, ...]) -> Callable[[bytes], object] | None:
         return codec.decode_store
     if len(parts) == 2 and parts[-1].endswith(".json"):
         return {
+            "archives": codec.decode_checkpoint,
+            "decommissions": codec.decode_decommission_plan,
             "registrations": codec.decode_declaration_record,
             "object-records": codec.decode_object_record,
             "fixed-retentions": codec.decode_retention,
@@ -35,7 +37,7 @@ def decoder(parts: tuple[str, ...]) -> Callable[[bytes], object] | None:
         and parts[2] == "history"
         and parts[-1].endswith(".json")
     ):
-        return codec.decode_declaration_record
+        return codec.decode_head if parts[-1] == "current.json" else codec.decode_declaration_record
     if len(parts) == 3:
         if parts[0] == "retired" and parts[-1].endswith(".json"):
             return codec.decode_retired
@@ -88,6 +90,17 @@ def record_issues(root: Path, reader: ControlReader) -> list[CheckIssue]:
             path = parent / name
             if name.endswith(".lock") or re.fullmatch(r"\.[^.]+\.json\.[a-z0-9_]+", name):
                 continue
+            if relative == ("archives",) and re.fullmatch(
+                r"(?:[0-9a-f]{64}\.pack|\.[0-9a-f]{64}\.pack\.[a-z0-9_]+)", name
+            ):
+                # Pack bodies are binary, not standalone JSON records. The inventory
+                # validates archive layout, then every referenced block is verified.
+                try:
+                    if not stat.S_ISREG(path.lstat().st_mode):
+                        issues.append(CheckIssue("control_type", "archive is not ordinary", path))
+                except OSError as exc:
+                    issues.append(CheckIssue("control_io", str(exc), path))
+                continue
             decode = decoder((*relative, name))
             if decode is None:
                 issues.append(CheckIssue("control_layout", "unknown control record", path))
@@ -102,29 +115,6 @@ def record_issues(root: Path, reader: ControlReader) -> list[CheckIssue]:
             except (AsterStoreError, OSError) as exc:
                 issues.append(CheckIssue("control_record", str(exc), path))
     return issues
-
-
-def regular_file(path: Path, managed_root: Path | None) -> None:
-    if managed_root is not None:
-        relative = path.relative_to(managed_root)
-        parent = managed_root
-        for part in ("", *relative.parts[:-1]):
-            parent = parent / part
-            if not stat.S_ISDIR(parent.lstat().st_mode):
-                raise OSError(f"managed parent is not an ordinary directory: {parent}")
-    if not stat.S_ISREG(path.lstat().st_mode):
-        raise OSError(f"object is not an ordinary file: {path}")
-
-
-def checksum(path: Path) -> str:
-    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    with os.fdopen(fd, "rb") as stream:
-        if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
-            raise OSError("object is not an ordinary file")
-        digest = hashlib.sha256()
-        while chunk := stream.read(1024 * 1024):
-            digest.update(chunk)
-        return digest.hexdigest()
 
 
 def check(

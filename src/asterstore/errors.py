@@ -1,5 +1,8 @@
 """Exceptions exposed by the implemented declaration and binding API."""
 
+from pathlib import Path
+from typing import Literal
+
 
 class AsterStoreError(Exception):
     """Base class for asterstore errors."""
@@ -77,3 +80,40 @@ class ResourceNotBoundError(AsterStoreError, KeyError):
 
 class UnknownMemberError(AsterStoreError, KeyError):
     """A requested logical member is absent from the bound declaration."""
+
+
+class DataCheckError(AsterStoreError):
+    """An explicit data check failed; commit state is separate from data health."""
+
+    def __init__(
+        self,
+        *,
+        check: str,
+        code: str,
+        object_id: str,
+        path: Path,
+        dataset_id: str,
+        publication_id: str,
+        operation_id: str,
+    ) -> None:
+        self.check, self.code = check, code
+        self.object_id, self.path = object_id, path
+        self.dataset_id, self.publication_id = dataset_id, publication_id
+        self.operation_id = operation_id
+        self.commit_state: Literal["not_attempted", "committed", "unknown", "not_applicable"] = (
+            "not_applicable"
+        )
+        self.durability: Literal[
+            "not_requested", "not_completed", "completed", "unknown", "not_applicable"
+        ] = "not_applicable"
+        self.state_error: str | None = None
+        super().__init__(f"{check} check failed ({code}): {object_id} at {path}")
+
+
+class DatasetDecommissionedError(AsterStoreError):
+    """The dataset is permanently offline; historical metadata remains auditable."""
+
+    def __init__(self, dataset_id: str, operation_id: str) -> None:
+        self.dataset_id = dataset_id
+        self.operation_id = operation_id
+        super().__init__(f"dataset is decommissioned: {dataset_id} ({operation_id})")

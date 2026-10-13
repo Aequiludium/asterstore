@@ -13,7 +13,11 @@ from asterstore import StoreCorruptionError
 from asterstore.metadata import protocol
 
 CODECS: dict[str, tuple[Callable[[bytes], Any], Callable[[Any], bytes]]] = {
+    "dataset_tombstone": (protocol.decode_tombstone, protocol.encode_tombstone),
+    "decommission_plan": (protocol.decode_decommission_plan, protocol.encode_decommission_plan),
     "store": (protocol.decode_store, protocol.encode_store),
+    "archive_reference": (protocol.decode_reference, protocol.encode_reference),
+    "control_checkpoint": (protocol.decode_checkpoint, protocol.encode_checkpoint),
     "publication": (protocol.decode_declaration_record, protocol.encode_declaration_record),
     "object": (protocol.decode_object_record, protocol.encode_object_record),
     "managed_request": (protocol.decode_managed_request, protocol.encode_managed_request),

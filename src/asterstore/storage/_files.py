@@ -6,6 +6,8 @@ from pathlib import Path
 
 from asterstore.errors import StoreCorruptionError
 
+from ._archive import read_control
+
 
 def sync_directory(path: Path) -> None:
     descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
@@ -57,7 +59,7 @@ def _write(path: Path, data: bytes, *, durable: bool, exclusive: bool) -> None:
             try:
                 os.link(temporary, path)
             except FileExistsError:
-                if path.read_bytes() != data:
+                if (read_control(path) if path.suffix == ".json" else path.read_bytes()) != data:
                     raise StoreCorruptionError(
                         f"immutable control record differs: {path}"
                     ) from None
