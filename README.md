@@ -124,8 +124,10 @@ uv run --locked --extra polars python examples/parquet.py
 
 **当前版本：[`0.2.0`](https://pypi.org/project/asterstore/0.2.0/)**，新增显式治理诊断与 Polars 2.x 支持。已完成 Aster 真实分钟行情的本地受管接入，验证发布、增量复用、读取、保留与回收；详见[接入验收](docs/aster-integration.md)。[诊断与检查](docs/inspection.md)需要 0.2.0 或更高版本；实际发行状态以 PyPI 和 GitHub Release 为准。
 
-当前验证范围为本地 Linux/POSIX；NFS 等共享挂载需要单独验证。核心以单个数据集发布为提交单位，控制历史尚未压缩。支持范围与后续工作见[首版范围](docs/release-scope.md)、[路线图](docs/roadmap.md)及[格式边界](docs/compatibility.md)。
+当前验证范围为本地 Linux/POSIX；NFS 等共享挂载需要单独验证。核心以单个数据集发布为提交单位。本地待发布版本支持显式 [控制历史压缩](docs/control-compaction.md)，保留原路径身份、历史和重试语义；不是自动后台任务。支持范围与后续工作见[首版范围](docs/release-scope.md)、[路线图](docs/roadmap.md)及[格式边界](docs/compatibility.md)。
 
 ---
 
 [Apache-2.0](LICENSE) · [变更记录](CHANGELOG.md) · [安全报告](SECURITY.md) · [问题反馈](https://github.com/Aequiludium/asterstore/issues)
+
+整个过期批次可使用显式治理 `decommission` 永久下线，再由 GC 回收未受保护的受管对象；支持固定清单、代际校验和中断恢复。详见 [数据集下线](docs/dataset-decommission.md)。

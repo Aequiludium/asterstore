@@ -1,6 +1,6 @@
 # 治理：直接保留、退役与可恢复回收
 
-状态：v0.1.0 已发布，使用单一格式。当前支持固定发布的 metadata/objects 两种直接保留、候选复用保护、预览、发布退役、固定计划回收和候选显式放弃。已放弃候选的物理清理见 [清理](cleanup.md)。发布依赖图、Release/Pointer、元数据压缩尚未实现。
+状态：v0.1.0 已发布，使用单一格式。当前支持固定发布的 metadata/objects 两种直接保留、候选复用保护、预览、发布退役、固定计划回收和候选显式放弃。已放弃候选的物理清理见 [清理](cleanup.md)。发布依赖图、Release/Pointer 尚未实现。本地待发布版本新增显式 [控制历史压缩](control-compaction.md)，需要维护窗口，不自动执行。
 
 ## 入口和必要功能
 
@@ -29,7 +29,7 @@ result = repo.governance.collect("collect:old-runs")
 assert repo.governance.resume_collection(result.operation_id) == result
 ```
 
-lifecycle 在 marker 中表现为 required_features 的必要功能项。允许四个固定组合：registered；registered+managed；registered+lifecycle；registered+managed+lifecycle。仅登记的仓库也可以保留元数据，但没有对象删除能力。
+lifecycle 在 marker 中表现为 required_features 的必要功能项。基础组合为 registered；registered+managed；registered+lifecycle；registered+managed+lifecycle。显式压缩后，含 lifecycle 的组合还可追加 control_archive，见 [控制历史压缩](control-compaction.md)。仅登记的仓库也可以保留元数据，但没有对象删除能力。
 
 lifecycle 必须在创建仓库时显式开启，之后不能手改 marker 或隐式开启；它要求候选创建与复用过程保存相应的保护记录。
 
@@ -113,3 +113,9 @@ collect 的 operation_id 属于回收操作命名空间；相同 ID 永远对应
 记录采用严格 UTF-8 JSON，随包提供 Schema 与 golden fixtures。普通当前 open 仍只读取 marker 和 current；不会运行治理遍历。历史打开额外检查目标退役状态，Binding 的成员选择仍没有文件系统 I/O。普通打开不取得保留，不能保证之后不与合法 GC 竞争；有持续读取需求的任务应先建立对象保留。
 
 当前保护来自协作式协议，不是抵抗控制目录被任意删改的隔离机制。测试覆盖本地 POSIX 多进程竞争、进程终止与提交边界异常；不将其当作断电、存储介质损坏或 NFS 多客户端资格。
+
+## 控制历史归档
+
+`governance.compact(operation_id, quiescent=True)` 独立处理终态控制历史，保留完整 current 与永久身份。持久化恢复、兼容性和成本边界见 [控制历史压缩](control-compaction.md)；它不回收数据、不解除 retention、不提供请求 TTL。
+
+整个过期批次可使用显式治理 `decommission` 永久下线，再由 GC 回收未受保护的受管对象；支持固定清单、代际校验和中断恢复。详见 [数据集下线](dataset-decommission.md)。

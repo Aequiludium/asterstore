@@ -50,7 +50,7 @@ ManagedRequest 固定 Store、操作、数据集、发布、expected_generation 
 
 managed ObjectRecord 保存 `management=managed`、`byte_stability=coordinated_immutable` 和 creator_operation_id；locator 必须位于创建操作的安全 token 子目录。registered 记录禁止包含创建权属。相同对象 ID 的 locator、管理方式、创建者和字节稳定性都不可更改。能力声明本身不授予删除权。
 
-候选不会因为退出上下文而提交或清理。写入者必须在 seal 前关闭文件句柄并停止修改；封存后不再发出写路径。封存只检查本候选的新文件：所有声明文件必须是普通文件，实际目录不能包含未声明文件或符号链接。不对文件内容计算哈希；不核验业务格式。遗留打开句柄或库外篡改不在协作式写入保证内。
+候选不会因为退出上下文而提交或清理。写入者必须在 seal 前关闭文件句柄并停止修改；封存后不再发出写路径。封存保留本候选声明新文件的最低安装约束：必须存在、为普通文件，路径及父链不能通过符号链接重定向。默认不再递归盘点额外文件；未声明条目可能随整个目录安装，但不进入绑定、不自动获得 GC 删除权。`commit(check="existence" | "format" | "checksum")` 可显式检查最终声明全部唯一对象（含复用对象），默认 `check="none"` 不做可选健康检查。format 需 validator，checksum 需完整可信 object_id 摘要映射。遗留打开句柄或库外篡改不在协作式写入保证内。
 
 提交顺序：验证固定请求、generation 和对象身份；持久化提交请求；原子安装私有目录；写入新对象的创建证据；归档旧 current；原子替换新 current。**current 替换仍是唯一公开生效点。** 目录存在、对象记录存在、封存存在，都不单独表示发布成功。
 
@@ -70,6 +70,15 @@ managed ObjectRecord 保存 `management=managed`、`byte_stability=coordinated_i
 
 普通 managed open 仍只读取 marker 和 current，不扫描数据或对象注册表；Binding 成员选择没有文件系统 I/O。完整权属检查发生在写入、复用和显式恢复边界，不转嫁到每次读取。
 
-全部 历史、操作与对象创建记录仍会保留。启用 lifecycle 的仓库已支持直接保留、GC 和候选放弃，完整语义见 [治理](governance.md)。残留物理清理见 [清理](cleanup.md)，元数据压缩仍待实现；不能仅根据 managed 标记或目录扫描授权删除。
+全部 历史、操作与对象创建记录仍会保留。启用 lifecycle 的仓库已支持直接保留、GC 和候选放弃，完整语义见 [治理](governance.md)。残留物理清理见 [清理](cleanup.md)，待发布的 [控制历史压缩](control-compaction.md) 可归档完整正文但保留身份入口；不能仅根据 managed 标记或目录扫描授权删除。
 
 测试覆盖提交边界异常、同 generation 多进程竞争、封存后/安装后/current 后强制终止进程、幂等恢复、对象复用、外部资源权限隔离和读取 I/O 次数。这些是本地 POSIX 证据，不构成 NFS、断电或磁盘损坏资格证明。
+
+
+## 可选检查与恢复（未发布）
+
+`seal()` 固定声明，不缓存健康检查结果。`resume(...).commit(check=...)` 每次执行本次请求的检查，已安装未提交的候选使用安装后的路径。耗时检查和用户回调在全局仓库锁外执行；调用方必须保持封存字节不变。检查后提交仍确认请求、generation 和权属，检查结果不授权删除。
+
+首次提交检查失败不由本次调用推进 current。已提交重试检查失败会抛 `DataCheckError` 并携带 `commit_state="committed"`，不回退 current；若状态查询失败则为 unknown。`durability="not_completed"` 表示本次强持久升级未完成，不能因为操作已提交就推断升级成功。none 不关闭安装/同步约束。registered 的 register/resume_registration 也接受显式检查，需提供 resources，默认仍不访问外部数据。
+
+未声明文件使用 `governance.inspect_candidate(operation_id)` 盘点。installed cleanup 仍拒绝超出创建证据的文件；调用方核实、移走未知条目后可重新预览/清理。已提交候选不能 abandon/cleanup，未知条目也不会被普通 GC 自动删除。详见[检查说明](optional-checks.md)及[可执行示例](../examples/optional_checks.py)。

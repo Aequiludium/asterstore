@@ -61,3 +61,8 @@ result = repository.governance.resume_cleanup("failed-operation")
 新增 `managed_cleanup_plan`、`managed_cleanup_progress` 两种严格 JSON 记录，纳入打包 Schema 和 golden fixtures。plan 内嵌完整原请求、location 及不重复且无文件祖先冲突的路径清单；progress 身份与路径集合必须匹配计划，complete 必须覆盖整个计划。
 
 本地测试覆盖异常注入、SIGKILL 后恢复、清理竞争及等待写入者时的锁顺序；这不是 NFS、多主机协调或真实断电测试。协作式文件管理不防护绕过库协议的并发写入或遗留可写句柄。
+
+
+## 默认可选检查后的未知条目（未发布）
+
+候选现在可在不递归盘点额外文件的情况下安装。installed cleanup 仍要求实际文件具备 sealed 创建证据，遇到未知项继续拒绝，不隐式扩大删除范围或改变 complete 的含义。先用 inspect_candidate 获得清单，调用方核实并移走未知条目后，再重新预览/清理。已提交候选仍不能使用 candidate cleanup；未知项由独立维护处置，普通 GC 不会认领它们。

@@ -99,7 +99,7 @@ ObjectRecord 保存 Store 内 object_id → locator、registered 管理方式与
 
 [Schema](../src/asterstore/metadata/schemas/store.json) 和 [golden fixtures](../tests/fixtures/protocol/) 随 wheel/sdist 发布。UTF-8 JSON 严格拒绝重复键、NaN/Infinity、错误类型、未知字段、未知 kind、混合版本和未知 required_features。Schema 负责结构；codec 另外检查 UTF-8 字节长度、成员闭包、路径冲突和 generation 的关系。
 
-marker 的 required_features 是必要语义门槛。managed 和 lifecycle 是同一格式内必须显式启用的能力。当前编解码器支持 registered 基础组合及 managed、lifecycle 必要功能的四个固定组合，见 [治理](governance.md)。含 managed 的组合必须包含 managed_resource_id。解码器拒绝不认识的组合。
+marker 的 required_features 是必要语义门槛。managed 和 lifecycle 是同一格式内必须显式启用的能力。当前编解码器支持 registered 基础组合及 managed、lifecycle 必要功能组合，以及要求 lifecycle 的 control_archive 组合，见 [治理](governance.md)。含 managed 的组合必须包含 managed_resource_id。解码器拒绝不认识的组合。
 
 ## 验收与剩余工作
 
@@ -112,3 +112,11 @@ managed 候选与创建权属已接入同一声明模型，见 [managed](publish
 ## 失败候选清理记录
 
 lifecycle 仓库支持 `managed_cleanup_plan` 和 `managed_cleanup_progress`，两者与永久放弃的 managed_request 关联。它们属于候选创建者的控制目录；逐文件的清理不删除身份记录，也不复用操作 ID。字段、授权与开发版本兼容性见 [清理](cleanup.md)。普通读取不加载这些记录。
+
+## 控制历史归档协议（待发布）
+
+显式 compact 可以启用 control_archive，增加 archive_reference 和 control_checkpoint 两种严格记录。不可变 pack + 原路径引用维持逻辑记录；current 保持内联完整声明。迁移、持久化和恢复状态详见 [控制历史压缩](control-compaction.md)。未启用时不写入这些记录，旧程序拒绝新必要功能。
+
+## 数据集下线记录
+
+`dataset_decommission` 必要功能要求 lifecycle，新增 `dataset_tombstone` 与 `decommission_plan`，当前共 15 类记录。固定计划位于 `decommissions/<operation-token>.json`，目标按 dataset_id 唯一排序，包含完整发布；current tombstone 包含下线 operation_id 和最后发布，其原记录必须同时存在于 history。下线永久保留身份，但不再形成 current 对象保护根。默认读只解码 current；完整计划关联校验在治理阶段执行。详见 [下线契约](dataset-decommission.md)。

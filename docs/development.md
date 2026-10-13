@@ -13,7 +13,7 @@ for example in examples/*.py; do uv run --locked --extra polars python "$example
 uv run --locked --extra polars python tools/check_distribution.py --polars --output-dir dist/0.2.0-verified
 ```
 
-协议检查验证唯一 Schema、11 类控制记录的 codec 和正反样例，不维护历史 API 快照。测试覆盖外部登记、受管提交、逻辑成员、对象复用、固定保留、GC、候选清理、进程竞争、强制终止恢复和读路径 I/O 边界。
+协议检查验证唯一 Schema、15 类控制记录的 codec 和正反样例，不维护历史 API 快照。测试覆盖外部登记、受管提交、逻辑成员、对象复用、固定保留、GC、候选清理、进程竞争、强制终止恢复和读路径 I/O 边界。
 
 发行检查显式通过 PEP 517 解析声明的后端，构建 wheel/sdist，从 sdist 重建 wheel，在源目录外独立安装验证。输出目录必须不存在，已验证制品和 SHA-256 不会覆盖旧文件；不上传包索引。
 

@@ -126,3 +126,8 @@ from asterstore.governance.inspection import CheckReport, GovernanceSnapshot
 `docs/validation/` 的原始 JSON 与分析报告保留在版本库和源码发行包中，以便核对
 工作负载、源指纹和历史性能结论；它们不进入安装 wheel，不由运行时读取，也不是
 性能保证或需要随每次改动重写的基准。新测量另存记录，不覆盖原始证据。
+
+
+## 候选命名空间盘点（未发布）
+
+`governance.inspect_candidate(operation_id)` 是独立、只读的候选盘点接口，覆盖未封存、已封存、已安装、已提交和退役候选的命名空间。它不扩大现有 check 的范围，也不授予未知文件删除权。冲突时非阻塞返回 RepositoryBusyError；异常控制文件类型在打开前拒绝。完整结果和残留处置路径见[可选检查](optional-checks.md)。

@@ -9,7 +9,7 @@
 - `Capabilities.registered()` 声明外部生产者的数据；`Capabilities.managed()` 声明库管理的数据。能力标签本身不授予文件删除权。
 - `Repository(root)` 只捕获词法绝对根。`bind(declaration, resources=...)` 捕获资源根和成员路径，不访问文件系统。
 - `open(dataset_id, publication_id=None, resources=None)` 返回 `Binding`，其 `publication` 总是 `Declaration`。受管根由仓库固定；registered 必须由调用方绑定外部资源根。
-- `list_datasets()` 显式读取已提交 current 清单，返回排序后的 dataset ID 元组；忽略尚无 current 的候选，不扫描数据文件。它不是跨数据集原子快照或完整审计。
+- `list_datasets(include_decommissioned=False)` 显式读取在线 current 清单，返回排序后的 dataset ID 元组；忽略尚无 current 的候选，不扫描数据文件。它不是跨数据集原子快照或完整审计。
 - `describe(dataset_id, publication_id=None)` 返回 `DeclarationRecord`；发现元数据不意味着历史字节仍可读取。
 - `Binding.files(keys=None)` 返回所有去重路径；显式 keys 按逻辑成员选择并保留请求顺序和重复项。选择复用缓存，不做 stat、扫描、hash、刷新或隐式保留。
 - `Binding.capabilities` 总是声明的 `Capabilities`。
@@ -62,3 +62,18 @@ registered 不能取得 OBJECTS 保留或数据删除权。普通 Binding 和 La
 诊断接口 `inspect`、`check`、`collection_status`、`cleanup_status` 无法取得稳定观察时，统一抛 `RepositoryBusyError(AsterStoreError)`，不自动等待；调用方稍后重试。诊断返回类型从 `asterstore.governance.inspection` 导入，详情见[诊断与检查](inspection.md)。
 
 `check()` 将检查过程中捕获的非忙 `AsterStoreError` / `OSError` 汇总到报告；`inspect()` 和任务状态查询直接抛出遇到的错误。参数校验错误仍抛出，详见[错误契约](inspection.md#错误契约)。
+
+
+## 可选读写检查（未发布）
+
+`Repository.open`、`register`、`resume_registration` 和 `Candidate.commit` 增加 keyword-only `check="none"`、`validator`、`checksums`。registered 写检查另传 `resources`。返回类型不变；describe/bind/Binding.files 不增加检查。参数和错误状态见[可选检查](optional-checks.md)。`DataCheckError` 可从包根或 `asterstore.errors` 导入。
+
+`governance.inspect_candidate(operation_id)` 返回 `CandidateInspection`，类型从 `asterstore.governance.inspection` 导入。提供候选状态、位置、声明/观察文件、缺失项、未知条目和类型/I/O 问题；未封存时 declaration_known=False，不把未持久化成员误认成已知声明。接口非阻塞，冲突抛 RepositoryBusyError，不写锁文件、不删除数据。
+
+## 控制历史压缩（待发布）
+
+`repo.governance.compact(operation_id, *, quiescent: bool) -> CompactionResult`：显式维护窗口内归档终态控制正文。同 ID 恢复已固定的 checkpoint；无收益、未完成任务或损坏证据会拒绝。结果类型从 asterstore.governance 导入。执行启用旧版本不支持的 control_archive；详细契约见 [控制历史压缩](control-compaction.md)。
+
+## 数据集下线
+
+`governance.decommission(operation_id, datasets={dataset_id: expected_generation})` 固定批次并逐个永久下线；不删除数据。`resume_decommission` 恢复原清单，`decommission_status` 返回已下线、待处理和冲突目标，`dataset_status` 查询单数据集最后发布与状态。`DatasetStatus` 和 `DecommissionResult` 从 `asterstore.governance` 导入。`complete` 仍须结合 `conflicts` 判断成功；读写和保留边界见 [整个数据集下线](dataset-decommission.md)。
