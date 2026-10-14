@@ -22,6 +22,7 @@ from asterstore.metadata.protocol import (
     decode_retention,
     decode_retired,
 )
+from asterstore.storage._archive import read_control
 
 from ._managed import managed_directory, read_managed_request
 from ._records import read_store, token
@@ -48,7 +49,7 @@ def collection_directory(root: Path, operation_id: str) -> Path:
 
 def read_retention(root: Path, store: StoreRecord, name: str) -> FixedRetention | None:
     try:
-        data = retention_path(root, name).read_bytes()
+        data = read_control(retention_path(root, name))
     except FileNotFoundError:
         return None
     value = decode_retention(data)
@@ -64,7 +65,7 @@ def read_retired(
         return None
     declaration = publication.declaration
     try:
-        data = retired_path(root, declaration.dataset_id, declaration.publication_id).read_bytes()
+        data = read_control(retired_path(root, declaration.dataset_id, declaration.publication_id))
     except FileNotFoundError:
         return None
     value = decode_retired(data)
@@ -85,7 +86,7 @@ def read_abandoned(root: Path, store: StoreRecord, operation_id: str) -> Managed
     if not store.lifecycle:
         return None
     try:
-        data = (managed_directory(root, operation_id) / "abandoned.json").read_bytes()
+        data = read_control(managed_directory(root, operation_id) / "abandoned.json")
     except FileNotFoundError:
         return None
     value = decode_managed_abandonment(data)
@@ -103,7 +104,7 @@ def read_governance_plan(
     root: Path, store: StoreRecord, operation_id: str
 ) -> GovernancePlan | None:
     try:
-        data = (collection_directory(root, operation_id) / "plan.json").read_bytes()
+        data = read_control(collection_directory(root, operation_id) / "plan.json")
     except FileNotFoundError:
         return None
     value = decode_governance_plan(data)
@@ -114,7 +115,7 @@ def read_governance_plan(
 
 def read_governance_progress(root: Path, plan: GovernancePlan) -> GovernanceProgress:
     try:
-        data = (collection_directory(root, plan.operation_id) / "progress.json").read_bytes()
+        data = read_control(collection_directory(root, plan.operation_id) / "progress.json")
     except FileNotFoundError:
         return GovernanceProgress(plan.store_id, plan.operation_id)
     value = decode_governance_progress(data)

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+## 0.3.0 — 2026-10-14
+
+- 新增整批数据集永久下线：固定目标和 generation，逐个原子生效、状态查询与恢复；下线不删除文件，retention/候选仍保护对象，GC 独立回收。显式执行启用 dataset_decommission，旧客户端拒绝新仓库功能，默认 current 读取仍为两份控制记录。
+
+- 新增显式治理 compact：终态控制正文进入不可变压缩归档，保留原路径身份引用、历史与重试语义；固定 checkpoint 支持中断恢复。显式执行后启用 control_archive，旧版本拒绝该仓库；current 读取不增加 I/O。
+
+- 读写支持默认关闭的 existence/format/checksum 检查；恢复和已提交重试报告明确提交状态，检查不改变持久化承诺。
+- 候选默认不递归盘点未声明文件，保留声明新文件的最低安装约束；新增只读 inspect_candidate，未知文件不被自动认领或删除。
+- 同次协调操作内复用对象身份读取，避免重复读取；不跨锁缓存控制证据。
+
+
 ## 0.2.0 — 2026-10-12
 
 - 诊断锁竞争及首次写入竞态统一抛 `RepositoryBusyError`；诊断返回类型集中从 `asterstore.governance.inspection` 导入。

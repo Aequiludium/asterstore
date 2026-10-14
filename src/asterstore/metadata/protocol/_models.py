@@ -32,9 +32,15 @@ class StoreRecord:
     resource_ids: tuple[str, ...]
     managed_resource_id: str | None = None
     lifecycle: bool = False
+    archived: bool = False
+    decommissioning: bool = False
 
     def __post_init__(self) -> None:
         identity(self.store_id, "store_id")
+        if type(self.decommissioning) is not bool or (self.decommissioning and not self.lifecycle):
+            raise InvalidDeclarationError("dataset decommission requires lifecycle")
+        if type(self.archived) is not bool or (self.archived and not self.lifecycle):
+            raise InvalidDeclarationError("archive feature requires lifecycle")
         if type(self.lifecycle) is not bool:
             raise InvalidDeclarationError("lifecycle must be a boolean")
         if isinstance(self.resource_ids, str):

@@ -15,16 +15,20 @@ from asterstore.errors import (
 from asterstore.metadata.capabilities import RetentionScope
 from asterstore.metadata.protocol import (
     MAX_GENERATION,
+    DeclarationRecord,
     FixedRetention,
     decode_retention,
     encode_retention,
 )
 from asterstore.reading import Binding
 from asterstore.storage import atomic_write, file_lock, sync_control_files
+from asterstore.storage._archive import read_control
 from asterstore.storage.registry import (
     find_record,
     lifecycle_store,
     managed_data_root,
+    read_head,
+    read_head_state,
     read_retention,
     require_available,
     retention_path,
@@ -69,13 +73,15 @@ def retain(
             raise PublicationNotFoundError("retention target does not exist")
         publication.declaration.capabilities.require_retention(scope)
         if scope is RetentionScope.OBJECTS:
+            read_head(root, store, dataset_id)
             require_available(root, store, publication)
         # Strong protection must also preserve a previously weak target declaration.
-        from asterstore.storage.registry import head_path, publication_path, read_head
+        from asterstore.storage.registry import head_path, publication_path
 
+        head = read_head_state(root, store, dataset_id)
         target = (
             head_path(root, dataset_id)
-            if read_head(root, store, dataset_id) == publication
+            if isinstance(head, DeclarationRecord) and head == publication
             else publication_path(root, dataset_id, publication_id)
         )
         sync_control_files(root, (root / ".asterstore/format.json", target))
@@ -100,7 +106,7 @@ def list_retentions(root: Path, *, active_only: bool = False) -> tuple[FixedRete
         store = lifecycle_store(root)
         values = []
         for path in (root / ".asterstore/fixed-retentions").glob("*"):
-            value = decode_retention(path.read_bytes())
+            value = decode_retention(read_control(path))
             if value.store_id != store.store_id or path != retention_path(root, value.name):
                 raise StoreCorruptionError("retention path identity mismatch")
             if not active_only or value.active:

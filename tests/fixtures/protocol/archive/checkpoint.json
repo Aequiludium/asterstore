@@ -1,0 +1,17 @@
+{
+  "format_version": 1,
+  "kind": "control_checkpoint",
+  "store_id": "fixture",
+  "operation_id": "compact1",
+  "records": {
+    "registrations/7d3c6b8d51ac8ec79a2adbf98045944f934c1279a57f689cd5ce997fc223b48e.json": {
+      "format_version": 1,
+      "kind": "archive_reference",
+      "archive": "2a81a4c91e21b1ddd448f59b9c5d0fc99ca6755b45d2c8825be0923bdd2b117d",
+      "offset": 0,
+      "length": 45,
+      "size": 60,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  }
+}

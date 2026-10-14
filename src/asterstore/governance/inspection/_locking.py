@@ -10,13 +10,13 @@ from asterstore.errors import RepositoryBusyError, StoreCorruptionError, Unsuppo
 
 
 @contextmanager
-def inspection_lock(root: Path) -> Iterator[bool]:
+def existing_lock(path: Path) -> Iterator[bool]:
     try:
         import fcntl
     except ImportError as exc:
         raise UnsupportedPlatformError("inspection requires POSIX flock") from exc
     try:
-        fd = os.open(root / ".asterstore/gc.lock", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except FileNotFoundError:
         # Initialization does not create gc.lock. Callers must accept only an empty
         # inventory and verify no first writer created the lock during observation.
@@ -35,3 +35,9 @@ def inspection_lock(root: Path) -> Iterator[bool]:
             fcntl.flock(fd, fcntl.LOCK_UN)
     finally:
         os.close(fd)
+
+
+@contextmanager
+def inspection_lock(root: Path) -> Iterator[bool]:
+    with existing_lock(root / ".asterstore/gc.lock") as coordinated:
+        yield coordinated

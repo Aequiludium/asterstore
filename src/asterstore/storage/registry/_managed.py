@@ -8,6 +8,7 @@ from asterstore.metadata.protocol import (
     StoreRecord,
     decode_managed_request,
 )
+from asterstore.storage._archive import read_control
 
 from ._records import token
 
@@ -24,7 +25,7 @@ def read_managed_request(
     root: Path, store: StoreRecord, operation_id: str
 ) -> ManagedRequest | None:
     try:
-        data = (managed_directory(root, operation_id) / "request.json").read_bytes()
+        data = read_control(managed_directory(root, operation_id) / "request.json")
     except FileNotFoundError:
         return None
     value = decode_managed_request(data)

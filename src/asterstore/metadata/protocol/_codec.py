@@ -10,22 +10,24 @@ from ._models import FORMAT_VERSION, DeclarationRecord, ManagedRequest, ObjectRe
 
 
 def encode_store(value: StoreRecord) -> bytes:
+    features = ["registered"]
+    if value.managed_resource_id is not None:
+        features.append("managed")
+    if value.lifecycle:
+        features.append("lifecycle")
+    if value.archived:
+        features.append("control_archive")
+    if value.decommissioning:
+        features.append("dataset_decommission")
     payload: dict[str, object] = {
         "format_version": FORMAT_VERSION,
         "kind": "store",
         "store_id": value.store_id,
         "resource_ids": value.resource_ids,
-        "required_features": ["registered"],
+        "required_features": features,
     }
     if value.managed_resource_id is not None:
-        payload["required_features"] = ["registered", "managed"]
         payload["managed_resource_id"] = value.managed_resource_id
-    if value.lifecycle:
-        payload["required_features"] = (
-            ["registered", "managed", "lifecycle"]
-            if value.managed_resource_id is not None
-            else ["registered", "lifecycle"]
-        )
     return dump(payload)
 
 
@@ -38,6 +40,12 @@ def decode_store(data: bytes) -> StoreRecord:
             ["registered", "managed"],
             ["registered", "lifecycle"],
             ["registered", "managed", "lifecycle"],
+            ["registered", "lifecycle", "control_archive"],
+            ["registered", "managed", "lifecycle", "control_archive"],
+            ["registered", "lifecycle", "dataset_decommission"],
+            ["registered", "managed", "lifecycle", "dataset_decommission"],
+            ["registered", "lifecycle", "control_archive", "dataset_decommission"],
+            ["registered", "managed", "lifecycle", "control_archive", "dataset_decommission"],
         ):
             raise ValueError("unsupported required features")
         assert isinstance(features, list)
@@ -51,6 +59,8 @@ def decode_store(data: bytes) -> StoreRecord:
             tuple(text(x) for x in array(value["resource_ids"])),
             text(value["managed_resource_id"]) if managed else None,
             "lifecycle" in features,
+            "control_archive" in features,
+            "dataset_decommission" in features,
         )
     except (ValueError, TypeError, KeyError) as exc:
         raise StoreCorruptionError(f"invalid store: {exc}") from exc

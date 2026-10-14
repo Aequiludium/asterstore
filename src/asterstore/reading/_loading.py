@@ -1,8 +1,9 @@
 """Explicit persistent binding. No data-file probing or retention side effects."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
+from asterstore._data_checks import Check, CheckOptions
 from asterstore.errors import (
     HistoryUnavailableError,
     InvalidDeclarationError,
@@ -21,6 +22,7 @@ from asterstore.storage.registry import (
 )
 
 from ._binding import Binding
+from .resources import ResourceMap
 
 
 def describe(
@@ -43,7 +45,11 @@ def open_binding(
     *,
     publication_id: str | None = None,
     resources: Mapping[str, str | Path] | None = None,
+    check: Check = "none",
+    validator: Callable[[Path], None] | None = None,
+    checksums: Mapping[str, str] | None = None,
 ) -> Binding:
+    options = CheckOptions(check, validator, checksums)
     metadata = read_store(root)
     head = read_head(root, metadata, dataset_id)
     result = (
@@ -66,7 +72,22 @@ def open_binding(
         if given is not None and absolute_root(given) != managed_root:
             raise InvalidDeclarationError("managed resource root cannot be redirected")
         bindings[metadata.managed_resource_id] = managed_root
-        return Binding(root, result.declaration, resources=bindings)
-    if resources is None:
-        raise ResourceNotBoundError("registered binding requires explicit resource roots")
-    return Binding(root, result.declaration, resources=resources)
+        binding = Binding(root, result.declaration, resources=bindings)
+    else:
+        if resources is None:
+            raise ResourceNotBoundError("registered binding requires explicit resource roots")
+        binding = Binding(root, result.declaration, resources=resources)
+    if check != "none":
+        assert binding.resources is not None
+        mapping = ResourceMap(binding.resources)
+        options.run(
+            result,
+            {
+                obj.object_id: mapping.locate(obj.locator)
+                for obj in result.declaration.files.objects
+            },
+            managed_root=root
+            if result.declaration.capabilities.management is Management.MANAGED
+            else None,
+        )
+    return binding

@@ -6,16 +6,18 @@ from typing import Literal
 
 from asterstore.errors import PublicationNotFoundError, StoreCorruptionError
 from asterstore.metadata.protocol import (
+    DatasetTombstone,
     DeclarationRecord,
     ManagedRequest,
     decode_declaration_record,
 )
 from asterstore.storage import file_lock
+from asterstore.storage._archive import read_control
 from asterstore.storage.registry import (
     find_record,
     managed_directory,
     read_abandoned,
-    read_head,
+    read_head_state,
     read_managed_request,
     read_retired,
     read_store,
@@ -26,7 +28,14 @@ from asterstore.storage.registry import (
 class CandidateStatus:
     operation_id: str
     state: Literal[
-        "writing", "prepared", "conflict", "current", "historical", "retired", "abandoned"
+        "writing",
+        "prepared",
+        "conflict",
+        "current",
+        "historical",
+        "retired",
+        "abandoned",
+        "decommissioned",
     ]
     store_id: str
     dataset_id: str
@@ -52,17 +61,19 @@ def candidate_status(root: Path, operation_id: str) -> CandidateStatus:
             )
         try:
             sealed = decode_declaration_record(
-                (managed_directory(root, operation_id) / "sealed.json").read_bytes()
+                read_control(managed_directory(root, operation_id) / "sealed.json")
             )
         except FileNotFoundError:
             sealed = None
         if sealed is not None and sealed != request.declaration_record(sealed.declaration.files):
             raise StoreCorruptionError("candidate seal and request disagree")
-        current = read_head(root, store, request.dataset_id)
+        head = read_head_state(root, store, request.dataset_id)
+        current = None if isinstance(head, DatasetTombstone) else head
         committed = find_record(root, store, request.dataset_id, request.publication_id)
         return status_from_records(
             request,
             current=current,
+            decommissioned=isinstance(head, DatasetTombstone),
             committed=committed,
             sealed=sealed,
             abandoned=False,
@@ -82,10 +93,18 @@ def status_from_records(
     sealed: DeclarationRecord | None,
     abandoned: bool,
     retired: bool,
+    decommissioned: bool = False,
 ) -> CandidateStatus:
     """Derive the same state for a single query and a coordinated inventory."""
     state: Literal[
-        "writing", "prepared", "conflict", "current", "historical", "retired", "abandoned"
+        "writing",
+        "prepared",
+        "conflict",
+        "current",
+        "historical",
+        "retired",
+        "abandoned",
+        "decommissioned",
     ]
     if abandoned:
         state = "abandoned"
@@ -93,6 +112,8 @@ def status_from_records(
         if sealed != committed:
             raise StoreCorruptionError("committed candidate lacks matching seal")
         state = "retired" if retired else "current" if current == committed else "historical"
+    elif decommissioned:
+        state = "decommissioned"
     elif (
         committed is not None
         or (0 if current is None else current.generation) != request.expected_generation

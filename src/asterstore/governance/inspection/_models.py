@@ -5,7 +5,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from asterstore.metadata.protocol import DeclarationRecord, FixedRetention, ObjectRecord
+from asterstore.metadata.protocol import (
+    DatasetTombstone,
+    DeclarationRecord,
+    FixedRetention,
+    ObjectRecord,
+)
 from asterstore.publishing import CandidateStatus
 
 CheckLevel = Literal["metadata", "existence", "format", "checksum"]
@@ -56,6 +61,7 @@ class GovernanceSnapshot:
     retentions: tuple[FixedRetention, ...]
     maintenance: tuple[MaintenanceStatus, ...]
     objects: tuple[ObjectExplanation, ...]
+    decommissioned: tuple[DatasetTombstone, ...] = ()
 
     def explain_object(self, object_id: str) -> ObjectExplanation:
         """Look up a registered object in this observation, without filesystem I/O."""

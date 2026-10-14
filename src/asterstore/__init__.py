@@ -4,6 +4,8 @@ from .errors import (
     AsterStoreError,
     CandidateAbandonedError,
     CandidateStateError,
+    DataCheckError,
+    DatasetDecommissionedError,
     HistoryUnavailableError,
     InvalidDeclarationError,
     PublicationConflictError,
@@ -42,6 +44,7 @@ from .registration import RegistrationStatus
 from .repository import Repository
 
 __all__ = [
+    "DatasetDecommissionedError",
     "CleanupPreview",
     "CleanupResult",
     "FixedRetention",
@@ -74,6 +77,7 @@ __all__ = [
     "AsterStoreError",
     "Binding",
     "CandidateStateError",
+    "DataCheckError",
     "InvalidDeclarationError",
     "HistoryUnavailableError",
     "PublicationConflictError",
