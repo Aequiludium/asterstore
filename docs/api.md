@@ -1,6 +1,6 @@
 # 当前 API
 
-常用公开类型从 `asterstore` 导入，诊断返回类型从 `asterstore.governance.inspection` 导入。基础诊断与检查接口自 0.2.0 提供。本文同时描述当前源码的待发布接口；读写 `check` 参数、`include_decommissioned`、候选盘点、compact 和 decommission 不在 PyPI 0.2.0 中，见[格式边界](compatibility.md)。
+常用公开类型从 `asterstore` 导入，诊断返回类型从 `asterstore.governance.inspection` 导入。基础诊断与检查接口自 0.2.0 提供。本文以 0.3.0 接口为准；读写 `check` 参数、`include_decommissioned`、候选盘点、compact 和 decommission 不在 PyPI 0.2.0 中，见[格式边界](compatibility.md)。
 
 ## 声明与读取
 
@@ -64,17 +64,17 @@ registered 不能取得 OBJECTS 保留或数据删除权。普通 Binding 和 La
 `check()` 将检查过程中捕获的非忙 `AsterStoreError` / `OSError` 汇总到报告；`inspect()` 和任务状态查询直接抛出遇到的错误。参数校验错误仍抛出，详见[错误契约](inspection.md#错误契约)。
 
 
-## 可选读写检查（未发布）
+## 可选读写检查（0.3.0 起）
 
 `Repository.open`、`register`、`resume_registration` 和 `Candidate.commit` 增加 keyword-only `check="none"`、`validator`、`checksums`。registered 写检查另传 `resources`。返回类型不变；describe/bind/Binding.files 不增加检查。参数和错误状态见[可选检查](optional-checks.md)。`DataCheckError` 可从包根或 `asterstore.errors` 导入。
 
 `governance.inspect_candidate(operation_id)` 返回 `CandidateInspection`，类型从 `asterstore.governance.inspection` 导入。提供候选状态、位置、声明/观察文件、缺失项、未知条目和类型/I/O 问题；未封存时 declaration_known=False，不把未持久化成员误认成已知声明。接口非阻塞，冲突抛 RepositoryBusyError，不写锁文件、不删除数据。
 
-## 控制历史压缩（待发布）
+## 控制历史压缩（0.3.0 起）
 
 `repo.governance.compact(operation_id, *, quiescent: bool) -> CompactionResult`：显式维护窗口内归档终态控制正文。同 ID 恢复已固定的 checkpoint；无收益、未完成任务或损坏证据会拒绝。结果类型从 asterstore.governance 导入。执行启用旧版本不支持的 control_archive；详细契约见 [控制历史压缩](control-compaction.md)。
 
-## 数据集下线（待发布）
+## 数据集下线（0.3.0 起）
 
 `governance.decommission(operation_id, datasets={dataset_id: expected_generation})` 固定批次并逐个永久下线；不删除数据。`resume_decommission` 恢复原清单，`decommission_status` 返回已下线、待处理和冲突目标，`dataset_status` 查询单数据集最后发布与状态。`DatasetStatus` 和 `DecommissionResult` 从 `asterstore.governance` 导入。`complete` 仍须结合 `conflicts` 判断成功；读写和保留边界见 [整个数据集下线](dataset-decommission.md)。
 

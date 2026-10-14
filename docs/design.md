@@ -22,7 +22,7 @@ asterstore 是面向文件数据的独立治理库。库管理的不可变对象
 
 默认关闭的是额外数据健康检查，不是代际冲突、身份一致性或对象删除权属约束。选择检查强度也不改变 durable 的承诺。下线不撤销已有 Binding，元数据声明不证明文件仍存在；需要跨回收操作使用文件的消费者须显式取得对象 retention。
 
-读写可选检查、下线和归档为待发布接口；具体范围见 [可选检查](optional-checks.md)、[下线](dataset-decommission.md)与[归档](control-compaction.md)。
+读写可选检查、下线和归档自 0.3.0 提供；具体范围见 [可选检查](optional-checks.md)、[下线](dataset-decommission.md)与[归档](control-compaction.md)。
 
 ## 规范目录
 

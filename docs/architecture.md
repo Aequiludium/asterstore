@@ -31,4 +31,4 @@ registered 和 managed 是同一模型的两种管理方式，区别在对象创
 
 metadata 不做文件 I/O；storage 不决定业务或治理策略；publishing/registration/governance 编排显式状态转换。reading 只读取必要控制记录，已绑定成员选择没有治理 I/O。完整清单校验在声明构造与封存边界完成，候选逐成员添加使用增量索引。
 
-诊断返回类型公开于 `asterstore.governance.inspection`；`Governance`、回收/清理结果及待发布的 `DatasetStatus`、`DecommissionResult`、`CompactionResult` 从 `asterstore.governance` 导入。其他内部模块不作为稳定导入入口。公开入口以 [API](api.md) 为准。Schema 和 fixtures 是当前结构证据，权属、恢复、同步顺序与并发语义由行为测试验证。
+诊断返回类型公开于 `asterstore.governance.inspection`；`Governance`、回收/清理结果及0.3.0 新增的 `DatasetStatus`、`DecommissionResult`、`CompactionResult` 从 `asterstore.governance` 导入。其他内部模块不作为稳定导入入口。公开入口以 [API](api.md) 为准。Schema 和 fixtures 是当前结构证据，权属、恢复、同步顺序与并发语义由行为测试验证。

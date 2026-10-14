@@ -12,6 +12,6 @@
 
 PIT、字段质量、交易日、数据库同步与调度属于应用侧。核心不识别具体表，不引入后台运维服务。
 
-[#21](https://github.com/Aequiludium/asterstore/issues/21) 先确认读、写、运维治理职责并做分项基准，再评估可独立执行的检查与历史压缩；不向读取路径转移治理成本。0.2.0 发行本身不改变写入检查边界，也未交付 checkpoint 或 manifest 重构。当前待发布开发实现已完成读写可选检查和显式控制归档；见 [D 实测及复审](validation/issue-21-d-2026-10-13.md)。完整 current 仍独立保留，不引入 manifest 追踪。
+[#21](https://github.com/Aequiludium/asterstore/issues/21) 先确认读、写、运维治理职责并做分项基准，再评估可独立执行的检查与历史压缩；不向读取路径转移治理成本。0.2.0 发行本身不改变写入检查边界，也未交付 checkpoint 或 manifest 重构。0.3.0已完成读写可选检查和显式控制归档；见 [D 实测及复审](validation/issue-21-d-2026-10-13.md)。完整 current 仍独立保留，不引入 manifest 追踪。
 
-当前源码还完成整批数据集下线、固定批次恢复及状态诊断，经过独立复审；它与读写检查、归档一同等待后续版本发布。使用边界见 [下线指南](dataset-decommission.md)，证据见 [复审](plans/dataset-decommission-review.md)与[验收](validation/dataset-decommission-2026-10-13.md)。后续关注真实过期批次中的治理耗时与保留引用清理，不引入读取时 TTL 或自动解除消费者保护。
+当前源码还完成整批数据集下线、固定批次恢复及状态诊断，经过独立复审；它与读写检查、归档一同在 0.3.0 提供。使用边界见 [下线指南](dataset-decommission.md)，证据见 [复审](plans/dataset-decommission-review.md)与[验收](validation/dataset-decommission-2026-10-13.md)。后续关注真实过期批次中的治理耗时与保留引用清理，不引入读取时 TTL 或自动解除消费者保护。
