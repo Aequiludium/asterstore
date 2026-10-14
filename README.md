@@ -28,7 +28,7 @@
 ## 治理明确，读取轻量
 
 - **发布有边界。** 写入候选后显式提交，以原子切换使新发布可见；未变化的受管对象可以直接复用。
-- **读取走短路径。** 打开当前发布只读两份控制记录；绑定后反复选择文件路径，不扫描目录、不逐文件预检、不计算内容哈希。
+- **读取走短路径。** 默认情况下，稳定状态打开当前发布只读两份控制记录；绑定后反复选择文件路径，不扫描目录、不逐文件预检、不计算内容哈希。
 - **保留由任务决定。** 需要的发布显式保留，使用完成后按引用版本释放；绑定或读取本身不产生保留记录。
 - **回收可以恢复。** 先预览，再按固定计划退役与删除；中断后沿原计划恢复，清理范围不扩大。
 
@@ -43,6 +43,8 @@
 
 两者共用 `Declaration`、`Binding` 和治理接口。登记外部文件不会改变其生产流程，也不会赋予库删除权。详见[声明与资源绑定](docs/declarations.md)。
 
+读、写和运维治理分开：读写可显式选择检查强度，默认 `check="none"`；全仓检查、数据集下线、数据回收和控制历史归档由调用方独立执行。检查开销发生在选定的阶段，`Binding.files()` 始终只做内存中的路径选择。
+
 ## 快速开始
 
 需要 Python 3.11+，在你的 uv 项目中安装：
@@ -53,7 +55,7 @@ uv add asterstore
 uv add 'asterstore[polars]'
 ```
 
-从源码开发见[贡献指南](CONTRIBUTING.md)。
+下文基础发布与保留示例适用于已发布的 0.2.0。**读写可选检查、候选盘点、控制历史归档和整批下线属于当前源码的待发布功能**；安装 PyPI 0.2.0 不会获得这些接口。从源码开发见[贡献指南](CONTRIBUTING.md)。
 
 **写入一次，显式发布。** 将下面代码保存为 `demo.py`，运行 `uv run python demo.py`：
 
@@ -117,17 +119,18 @@ uv run --locked --extra polars python examples/parquet.py
 | 使用接口与读取引擎 | [API](docs/api.md) · [引擎接入](docs/integrations.md) · [示例](examples) |
 | 发布、保留与回收如何工作 | [发布](docs/publishing.md) · [治理](docs/governance.md) · [候选清理](docs/cleanup.md) |
 | 诊断与显式检查（0.2.0 起） | [范围与并发约定](docs/inspection.md) · [示例](examples/inspection.py) |
+| 读写检查与候选盘点（待发布） | [检查选项与错误状态](docs/optional-checks.md) · [示例](examples/optional_checks.py) |
+| 整批过期数据下线（待发布） | [下线、恢复与 GC](docs/dataset-decommission.md) · [示例](examples/decommission_datasets.py) |
+| 控制历史归档（待发布） | [维护窗口与兼容性](docs/control-compaction.md) · [示例](examples/archive_history.py) |
 | 模型与磁盘格式 | [设计原则](docs/design.md) · [项目结构](docs/architecture.md) · [协议](docs/protocol.md) |
 | 开发、验证与贡献 | [开发指南](docs/development.md) · [性能验证](benchmarks/README.md) · [贡献指南](CONTRIBUTING.md) |
 
 ## 项目状态
 
-**当前版本：[`0.2.0`](https://pypi.org/project/asterstore/0.2.0/)**，新增显式治理诊断与 Polars 2.x 支持。已完成 Aster 真实分钟行情的本地受管接入，验证发布、增量复用、读取、保留与回收；详见[接入验收](docs/aster-integration.md)。[诊断与检查](docs/inspection.md)需要 0.2.0 或更高版本；实际发行状态以 PyPI 和 GitHub Release 为准。
+**本文对应的发布基线：[`0.2.0`](https://pypi.org/project/asterstore/0.2.0/)**，新增显式治理诊断与 Polars 2.x 支持。已完成 Aster 真实分钟行情的本地受管接入，验证发布、增量复用、读取、保留与回收；详见[接入验收](docs/aster-integration.md)。[诊断与检查](docs/inspection.md)需要 0.2.0 或更高版本；实际发行状态以 PyPI 和 GitHub Release 为准。
 
 当前验证范围为本地 Linux/POSIX；NFS 等共享挂载需要单独验证。核心以单个数据集发布为提交单位。本地待发布版本支持显式 [控制历史压缩](docs/control-compaction.md)，保留原路径身份、历史和重试语义；不是自动后台任务。支持范围与后续工作见[首版范围](docs/release-scope.md)、[路线图](docs/roadmap.md)及[格式边界](docs/compatibility.md)。
 
 ---
 
 [Apache-2.0](LICENSE) · [变更记录](CHANGELOG.md) · [安全报告](SECURITY.md) · [问题反馈](https://github.com/Aequiludium/asterstore/issues)
-
-整个过期批次可使用显式治理 `decommission` 永久下线，再由 GC 回收未受保护的受管对象；支持固定清单、代际校验和中断恢复。详见 [数据集下线](docs/dataset-decommission.md)。

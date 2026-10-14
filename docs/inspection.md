@@ -131,3 +131,13 @@ from asterstore.governance.inspection import CheckReport, GovernanceSnapshot
 ## 候选命名空间盘点（未发布）
 
 `governance.inspect_candidate(operation_id)` 是独立、只读的候选盘点接口，覆盖未封存、已封存、已安装、已提交和退役候选的命名空间。它不扩大现有 check 的范围，也不授予未知文件删除权。冲突时非阻塞返回 RepositoryBusyError；异常控制文件类型在打开前拒绝。完整结果和残留处置路径见[可选检查](optional-checks.md)。
+
+
+## 待发布能力的诊断
+
+- `inspect().decommissioned` 列出数据集 tombstone 及最后发布。发布仍分别报告 historical/retired；候选在未提交且数据集下线时报告 decommissioned，已提交候选保持 historical/retired。
+- `dataset_status(dataset_id)` 是 marker/current 的轻量观察；`decommission_status(operation_id)` 则在非阻塞治理锁内验证完整 inventory，不能套用 collection_status 的单任务成本说明。
+- 控制历史归档后，check 识别 checkpoint、pack 及原路径引用，并核验所引用控制块；这不等于检查所有未引用归档字节，也不检查业务文件格式，除非显式选择相应 level。
+- 候选文件盘点使用 [inspect_candidate](optional-checks.md#候选盘点与未知条目)，不将未知文件变成删除目标。
+
+这些能力与基础 0.2.0 诊断应按版本区分，见[兼容性](compatibility.md)。

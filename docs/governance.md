@@ -1,6 +1,6 @@
 # 治理：直接保留、退役与可恢复回收
 
-状态：v0.1.0 已发布，使用单一格式。当前支持固定发布的 metadata/objects 两种直接保留、候选复用保护、预览、发布退役、固定计划回收和候选显式放弃。已放弃候选的物理清理见 [清理](cleanup.md)。发布依赖图、Release/Pointer 尚未实现。本地待发布版本新增显式 [控制历史压缩](control-compaction.md)，需要维护窗口，不自动执行。
+基础保留与回收自 0.1.0 提供，0.2.0 增加显式诊断，使用单一格式。当前支持固定发布的 metadata/objects 两种直接保留、候选复用保护、预览、发布退役、固定计划回收和候选显式放弃。已放弃候选的物理清理见 [清理](cleanup.md)。发布依赖图、Release/Pointer 尚未实现。本地待发布版本新增显式 [控制历史压缩](control-compaction.md)，需要维护窗口，不自动执行。
 
 ## 入口和必要功能
 
@@ -29,7 +29,7 @@ result = repo.governance.collect("collect:old-runs")
 assert repo.governance.resume_collection(result.operation_id) == result
 ```
 
-lifecycle 在 marker 中表现为 required_features 的必要功能项。基础组合为 registered；registered+managed；registered+lifecycle；registered+managed+lifecycle。显式压缩后，含 lifecycle 的组合还可追加 control_archive，见 [控制历史压缩](control-compaction.md)。仅登记的仓库也可以保留元数据，但没有对象删除能力。
+lifecycle 在 marker 中表现为 required_features 的必要功能项。基础组合为 registered；registered+managed；registered+lifecycle；registered+managed+lifecycle。显式压缩后，含 lifecycle 的组合还可追加 control_archive；下线会启用 dataset_decommission，二者可以同时存在，见 [控制历史压缩](control-compaction.md)。仅登记的仓库也可以保留元数据，但没有对象删除能力。
 
 lifecycle 必须在创建仓库时显式开启，之后不能手改 marker 或隐式开启；它要求候选创建与复用过程保存相应的保护记录。
 
@@ -40,7 +40,7 @@ lifecycle 必须在创建仓库时显式开启，之后不能手改 marker 或�
 | METADATA | 目标声明与解释它所需的控制信息被保留 | 文件继续存在、外部字节不变 |
 | OBJECTS | managed 发布的声明和成员对象受统一 GC 协调保护 | 已丢失文件的修复、业务质量或外部系统遵守协议 |
 
-retain 必须显式指定 dataset_id、publication_id 和 scope；默认 expected_revision=0 表示新名字。名字终身固定目标及范围，不能用相同名字换绑另一发布。修改通过 revision 条件完成；释放后可以对相同目标重新申请，但已退役的 managed 对象发布不能复活。响应丢失后，相同创建或释放请求可以幂等重试。
+retain 必须显式指定 dataset_id、publication_id 和 scope；默认 expected_revision=0 表示新名字。名字终身固定目标及范围，不能用相同名字换绑另一发布。修改通过 revision 条件完成；释放后可以对相同目标重新申请，但已退役的 managed 对象发布不能复活，已下线数据集也不能重新取得对象保留。响应丢失后，相同创建或释放请求可以幂等重试。
 
 两个任务使用两个不同名字，释放自己的名字不会影响其他名字的保护。`get(name)` 返回最新引用记录，包括释放状态；`open(name, expected_revision=...)` 只接受仍激活的 OBJECTS 引用，可以绑定 current_only 的旧发布。它在 GC 协调内校验引用和目标，但返回 Binding 后不会续租；另一个调用方释放该引用也会终止保护。
 
@@ -62,7 +62,7 @@ GC 将未提交、未放弃候选的 protection 与 sealed 成员对象并入保
 
 当前根集合为：
 
-- current：保留声明，managed current 还保护对象。
+- 在线 current：保留声明，managed current 还保护对象。下线 tombstone 保留最后声明身份，但不保护对象。
 - 激活的 METADATA 引用：只增加声明根。
 - 激活的 OBJECTS 引用：增加声明根和对象根。
 - 未完成、未放弃候选：保护其已声明的新对象和复用对象。
@@ -118,4 +118,13 @@ collect 的 operation_id 属于回收操作命名空间；相同 ID 永远对应
 
 `governance.compact(operation_id, quiescent=True)` 独立处理终态控制历史，保留完整 current 与永久身份。持久化恢复、兼容性和成本边界见 [控制历史压缩](control-compaction.md)；它不回收数据、不解除 retention、不提供请求 TTL。
 
-整个过期批次可使用显式治理 `decommission` 永久下线，再由 GC 回收未受保护的受管对象；支持固定清单、代际校验和中断恢复。详见 [数据集下线](dataset-decommission.md)。
+## 下线、退役与删除的区别（下线接口待发布）
+
+| 操作 | 作用范围 | 结果 |
+| --- | --- | --- |
+| decommission | 一个或一批 dataset_id | 永久停止该身份的新发布与普通打开，解除 current 对象保护根 |
+| collect 中的退役 | 无保护的 managed 发布 | 保存不可逆退役事实，拒绝再次取得该发布对象 |
+| collect 中的删除 | 原固定计划中的受管对象 | 重新核验权属与保护关系后删除文件 |
+| compact | 终态控制正文 | 压缩控制历史，不删除数据、不改变保留关系 |
+
+下线不会自动释放 retention 或放弃候选；文件可能继续受保护。registered 数据集可以下线，但外部文件仍由生产者管理。完整操作流程、冲突恢复与状态成本见 [数据集下线](dataset-decommission.md)。

@@ -1,6 +1,6 @@
 # 当前 API
 
-常用公开类型从 `asterstore` 导入，诊断返回类型从 `asterstore.governance.inspection` 导入。诊断与检查接口自 0.2.0 提供，见[格式边界](compatibility.md)。
+常用公开类型从 `asterstore` 导入，诊断返回类型从 `asterstore.governance.inspection` 导入。基础诊断与检查接口自 0.2.0 提供。本文同时描述当前源码的待发布接口；读写 `check` 参数、`include_decommissioned`、候选盘点、compact 和 decommission 不在 PyPI 0.2.0 中，见[格式边界](compatibility.md)。
 
 ## 声明与读取
 
@@ -14,13 +14,13 @@
 - `Binding.files(keys=None)` 返回所有去重路径；显式 keys 按逻辑成员选择并保留请求顺序和重复项。选择复用缓存，不做 stat、扫描、hash、刷新或隐式保留。
 - `Binding.capabilities` 总是声明的 `Capabilities`。
 
-普通 current open 只读取 format/current 两份控制记录；数据是否存在及如何解码由文件读取或引擎负责。历史读取还要核对可用性与历史能力。
+默认 `check="none"` 时，稳定态 current open 只读取 format/current 两份控制记录；数据是否存在及如何解码由文件读取或引擎负责。历史读取还要核对可用性与历史能力。
 
 ## 初始化与发布
 
 `initialize(resource_ids=..., store_id=None, managed_resource_id=None, lifecycle=False, durable=True)` 显式创建仓库。同一配置可重试，不允许改变身份、资源或隐式启用功能。
 
-外部登记使用 `register(declaration, operation_id=..., expected_generation=..., durable=True)`；`resume_registration(operation_id)` 恢复固定请求，`registration_status(operation_id)` 查看状态。登记不访问外部数据字节。
+外部登记使用 `register(declaration, operation_id=..., expected_generation=..., durable=True)`；`resume_registration(operation_id)` 恢复固定请求，`registration_status(operation_id)` 查看状态。默认登记不访问外部数据字节；显式 `check` 可检查由 resources 定位的外部文件。
 
 受管发布使用 `prepare(dataset_id, publication_id=..., operation_id=..., expected_generation=..., history=HistoryAccess.CURRENT_ONLY, durable=True)`，返回上下文管理的 `Candidate`：
 
@@ -74,6 +74,18 @@ registered 不能取得 OBJECTS 保留或数据删除权。普通 Binding 和 La
 
 `repo.governance.compact(operation_id, *, quiescent: bool) -> CompactionResult`：显式维护窗口内归档终态控制正文。同 ID 恢复已固定的 checkpoint；无收益、未完成任务或损坏证据会拒绝。结果类型从 asterstore.governance 导入。执行启用旧版本不支持的 control_archive；详细契约见 [控制历史压缩](control-compaction.md)。
 
-## 数据集下线
+## 数据集下线（待发布）
 
 `governance.decommission(operation_id, datasets={dataset_id: expected_generation})` 固定批次并逐个永久下线；不删除数据。`resume_decommission` 恢复原清单，`decommission_status` 返回已下线、待处理和冲突目标，`dataset_status` 查询单数据集最后发布与状态。`DatasetStatus` 和 `DecommissionResult` 从 `asterstore.governance` 导入。`complete` 仍须结合 `conflicts` 判断成功；读写和保留边界见 [整个数据集下线](dataset-decommission.md)。
+
+
+| 治理入口 | 返回与成本 |
+| --- | --- |
+| `decommission(operation_id, *, datasets: Mapping[str, int])` | `DecommissionResult`；全仓控制盘点与同步，固定批次后逐数据集替换 current |
+| `resume_decommission(operation_id)` | 恢复原计划，不扩展目标；仍做完整控制关系验证 |
+| `decommission_status(operation_id)` | `DecommissionResult`；非阻塞协调并做完整 inventory，**不是**单计划的低成本轮询 |
+| `dataset_status(dataset_id)` | `DatasetStatus`；读取 marker/current，不做完整审计，也不保护对象 |
+
+`DatasetStatus` 字段为 dataset_id、state（active/decommissioned）、publication_id、generation、operation_id；在线数据集的 operation_id 为 None。`DecommissionResult` 提供 operation_id、decommissioned、pending、conflicts；后三项为排序后的数据集 ID 元组，complete 等于没有 pending。没有计划时状态查询/恢复抛 PublicationNotFoundError。
+
+下线后普通 open（含显式历史 open）与新发布抛 `DatasetDecommissionedError`，带 dataset_id 和下线 operation_id；显式历史 describe 仍可审计。`list_datasets(include_decommissioned=True)` 可发现已下线身份，`inspect().decommissioned` 返回 tombstone 元组。已有对象 retention 的消费者仍可使用 governance.open；返回路径本身不会续租或撤销。
