@@ -8,4 +8,4 @@ AsterStore 只负责一个数据集内部的文件成员、原子发布、一次
 
 普通文件成员可承载业务元数据；受限相对路径可承载引擎的分区后缀。这两项能力不要求核心理解 Aster。下游迁移和生产切换不属于新核心的独立实现验收。
 
-详见[协议](protocol.md)、[API](api.md)和[设计讨论记录](plans/dataset-two-version-protocol.md)。实现行为以 API 和协议文档为准。
+详见[协议](protocol.md)、[API](api.md)。实现行为以 API 和协议文档为准。
