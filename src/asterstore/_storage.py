@@ -113,9 +113,12 @@ def lock(base: Path, suffix: str) -> Iterator[None]:
 def inventory(base: Path, directory: Path) -> tuple[list[Path], list[Path]]:
     """Preflight a complete owned subtree before deleting anything."""
 
+    def scan_error(error: OSError) -> None:
+        raise error
+
     checked(base, directory.relative_to(base).as_posix())
     files, directories = [], []
-    for parent, children, names in os.walk(directory, followlinks=False):
+    for parent, children, names in os.walk(directory, followlinks=False, onerror=scan_error):
         for name in [*children, *names]:
             path = checked(base, (Path(parent) / name).relative_to(base).as_posix())
             if path.is_dir():

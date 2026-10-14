@@ -148,6 +148,8 @@ class Draft:
                 fs.checked(repo.root, source.relative_to(repo.root).as_posix())
                 if not source.is_file():
                     raise ValueError(f"declared member is not a file: {source}")
+                if path in self._new and source.stat().st_nlink != 1:
+                    raise ValueError("new files must have one hard link; copy external outputs")
             for path in set(self._members.values()) & self._new.keys():
                 source = self._new[path]
                 destination = self._directory / "objects" / path

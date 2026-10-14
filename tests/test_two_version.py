@@ -522,3 +522,149 @@ def test_weak_publish_skips_fsync_but_cleanup_syncs_before_delete(repo, monkeypa
     monkeypatch.setattr(fs, "sync_paths", sync)
     monkeypatch.setattr(Path, "unlink", unlink)
     repo.clean("daily", quiescent=True)
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_scan_failure_aborts_before_any_deletion(repo, monkeypatch, dry_run):
+    for i in range(3):
+        publish(repo, str(i).encode())
+    blocked = repo._directory("daily") / "staging" / "unreadable"
+    blocked.mkdir()
+    (blocked / "hidden").write_bytes(b"leftover")
+    before = {p: p.read_bytes() for p in repo.root.rglob("*") if p.is_file()}
+    original = os.scandir
+    deletions = []
+
+    def scandir(path):
+        if Path(path) == blocked:
+            raise PermissionError("injected unreadable staging directory")
+        return original(path)
+
+    def unlink(path, *args, **kwargs):
+        deletions.append(path)
+        raise AssertionError("preflight failure must prevent every deletion")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "scandir", scandir)
+        patch.setattr(Path, "unlink", unlink)
+        with pytest.raises(PermissionError, match="unreadable staging"):
+            repo.clean("daily", quiescent=True, dry_run=dry_run)
+    assert deletions == []
+    assert before == {p: p.read_bytes() for p in repo.root.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("failed_sync", [False, True])
+def test_initialize_retry_completes_durability(tmp_path, monkeypatch, failed_sync):
+    repo = Repository(tmp_path / "store")
+    original = fs.sync_paths
+
+    def fail(*args, **kwargs):
+        raise OSError("injected initialization sync failure")
+
+    if failed_sync:
+        with monkeypatch.context() as patch:
+            patch.setattr(fs, "sync_paths", fail)
+            with pytest.raises(OSError, match="initialization sync"):
+                repo.initialize(durable=True)
+    else:
+        repo.initialize(durable=False)
+    marker = repo.root / ".asterstore/format.json"
+    identity = marker.read_bytes()
+    synced = []
+
+    def sync(base, paths):
+        synced.append((base, paths))
+        original(base, paths)
+
+    monkeypatch.setattr(fs, "sync_paths", sync)
+    repo.initialize(durable=True)
+    assert synced == [(repo.root, {marker})]
+    assert marker.read_bytes() == identity
+    synced.clear()
+    repo.initialize(durable=False)
+    assert synced == []
+    monkeypatch.setattr(fs, "sync_paths", fail)
+    with pytest.raises(OSError, match="initialization sync"):
+        repo.initialize(durable=True)
+
+
+def test_initialize_marker_created_by_competing_initializer(tmp_path, monkeypatch):
+    from contextlib import contextmanager
+
+    repo = Repository(tmp_path / "store")
+    original_lock = fs.lock
+    original_sync = fs.sync_paths
+    synced = []
+    marker = repo.root / ".asterstore/format.json"
+
+    @contextmanager
+    def competing_initializer(base, suffix):
+        # The competing initializer finishes after our empty-root check.
+        repo.initialize(durable=False)
+        with original_lock(base, suffix):
+            yield
+
+    def sync(base, paths):
+        synced.append((base, paths))
+        original_sync(base, paths)
+
+    @contextmanager
+    def intercept(base, suffix):
+        with monkeypatch.context() as patch:
+            patch.setattr(fs, "lock", original_lock)
+            with competing_initializer(base, suffix):
+                yield
+
+    monkeypatch.setattr(fs, "lock", intercept)
+    monkeypatch.setattr(fs, "sync_paths", sync)
+    repo.initialize(durable=True)
+    assert synced == [(repo.root, {marker})]
+
+
+@pytest.mark.parametrize("source_kind", ["external", "other_dataset"])
+def test_seal_rejects_hardlinked_new_file(repo, tmp_path, source_kind):
+    initial = publish(repo, b"safe")
+    if source_kind == "other_dataset":
+        publish(repo, b"source", "other")
+        source = repo.open("other").files()[0]
+    else:
+        source = tmp_path / "external-output"
+        source.write_bytes(b"source")
+    with repo.prepare("daily") as draft:
+        draft.reuse_current()
+        draft.allocate("ordinary").write_bytes(b"ordinary")
+        destination = draft.allocate("linked")
+        os.link(source, destination)
+        objects_before = set((repo._directory("daily") / "objects").rglob("*"))
+        with pytest.raises(ValueError, match="one hard link"):
+            draft.seal()
+        assert objects_before == set((repo._directory("daily") / "objects").rglob("*"))
+        with pytest.raises(CandidateStateError):
+            draft.commit()
+    assert repo.describe("daily") == initial
+    assert repo.open("daily").files()[0].read_bytes() == b"safe"
+    assert source.read_bytes() == b"source"
+    # Removing rejected staging only drops its link, never the original source.
+    repo.clean("daily", quiescent=True)
+    assert source.exists() and source.stat().st_nlink == 1
+
+
+def test_copied_external_output_and_logical_alias_remain_supported(repo, tmp_path):
+    import shutil
+
+    source = tmp_path / "external"
+    source.write_bytes(b"snapshot")
+    with repo.prepare("daily") as draft:
+        shutil.copyfile(source, draft.allocate("data"))
+        draft.alias("alias", "data")
+        draft.seal()
+        draft.commit()
+    source.write_bytes(b"changed")
+    with repo.prepare("daily") as draft:
+        draft.reuse_current()
+        draft.seal()
+        draft.commit()
+    paths = repo.open("daily").files()
+    assert paths[0] == paths[1]
+    assert paths[0].read_bytes() == b"snapshot"
+    assert paths[0].stat().st_nlink == 1

@@ -58,13 +58,15 @@ class Repository:
         return value
 
     def initialize(self, *, durable: bool = True) -> None:
-        """Initialize an empty root, or verify an existing format-2 marker."""
+        """Initialize or verify the marker, completing its requested durability."""
         if type(durable) is not bool:
             raise TypeError("durable must be bool")
         self.root.mkdir(parents=True, exist_ok=True)
         marker = fs.checked(self.root, ".asterstore/format.json", missing=True)
         if marker.exists():
             self._marker()
+            if durable:
+                fs.sync_paths(self.root, {marker})
             return
         # Never claim existing data, including an interrupted initialization.
         if any(self.root.iterdir()):
@@ -72,6 +74,8 @@ class Repository:
         with fs.lock(self.root, ".asterstore/init.lock"):
             if marker.exists():
                 self._marker()
+                if durable:
+                    fs.sync_paths(self.root, {marker})
                 return
             fs.mkdir(self.root, ".asterstore/datasets")
             fs.write(
