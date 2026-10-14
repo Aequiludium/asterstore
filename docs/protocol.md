@@ -1,36 +1,47 @@
-# Format 2 磁盘协议
+# 磁盘协议
 
-只支持 format_version=2。格式 1 的 writer/reader 与新库不能混用，无隐式迁移。
+仓库标记使用 `format_version=2` 和库生成的 store_id。持久记录的结构定义见 [JSON Schema](../src/asterstore/schemas/store.json)，运行时 codec 另外检查路径、唯一性和身份关系。
 
 ```text
 root/.asterstore/
-  format.json                     # {format_version: 2, store_id: UUID hex}
+  format.json
   init.lock
   datasets/<sha256(dataset_id)>/
-    writer.lock                   # 持久锁文件，不删除
-    head.json                     # dataset_id, revision, current, rollback
-    versions/<version_id>.json    # dataset_id, version_id, members
+    writer.lock
+    head.json
+    versions/<version_id>.json
     objects/<unique_prefix>/<relative_path>
     staging/<version_id>/<unique_prefix>/<relative_path>
 ```
 
-清单 members 为有序 `{key, path}` 数组。key 唯一，path 相对本数据集 objects，多个成员可引用同一文件。所有版本和对象前缀为库生成的 32 位十六进制 UUID。数据集名通过 SHA-256 编码，不直接用作目录路径。
+## 记录
 
-记录严格拒绝重复 JSON 字段、错误字段/类型、非法路径、重叠文件/目录和身份不匹配。head revision 为 1 到 2^63−1；rollback 可空，不得等于 current。路径不得含空段、`.`、`..`、反斜线或绝对路径。控制访问及修改/清理预检拒绝软链接和特殊文件。
+- format：format_version、store_id。
+- head：dataset_id、revision、current、rollback。
+- manifest：dataset_id、version_id、members。
+- member：key、path；path 相对本数据集 objects 目录。
 
-JSON Schema 位于 `src/asterstore/schemas/store.json`，描述形状；codec 补充成员唯一性、路径和身份约束。schema 不能单独证明仓库可删除。
+members 是有序数组，key 唯一；多个 key 可以指向同一文件。版本 ID 和对象前缀使用 32 位十六进制 UUID。数据集名经 SHA-256 编码为目录名。锁文件持久存在，不应删除或替换。
 
-## 提交顺序
+revision 范围为 1 到 2^63−1。rollback 可空，不能与 current 相同。JSON 拒绝重复字段、额外字段、错误类型和身份不匹配。相对路径禁止绝对路径、空段、点段和反斜线；控制访问和修改预检拒绝软链接及特殊文件。
 
-1. 修改锁覆盖草稿准备、封存、业务检查及提交。
-2. seal 先确认本次新文件只有一个硬链接，再独占安装到 objects，写入唯一版本清单；未被 head 引用的清单无发布权威。
-3. durable=True 时同步新 current、将保留的 rollback 清单和文件及父目录。
-4. 原子替换整个 head，随后同步 head 及目录；异常可能发生于替换之后。
+## 发布顺序
 
-稳定读依次读取 marker、head、选中 manifest；普通读不扫描历史、不做数据文件预检。
+1. 取得数据集修改锁，固定基线 head。
+2. 在 staging 写入新文件并关闭写入器。
+3. seal 检查所有声明文件，新文件要求单个硬链接；独占安装文件并写入唯一版本清单。
+4. 调用方完成候选检查。
+5. durable=True 时，同步待保留的文件、清单和父目录。
+6. 原子替换整个 head，再同步 head 和目录。
 
-回退使用相同 head 替换，current=旧 rollback、rollback=null、revision+1。它不撤销已开始的读任务。
+只有 head 确定正式版本，未引用的清单不表示发布成功。第 6 步替换后仍可能抛出同步异常，因此异常结果需要重新检查 head。
 
-清理首先完整预检保留集合和托管子树，再同步保留文件/清单及 head，然后删除无引用文件。同步失败不开始删除，删除中断后重新计算。清理不创建永久计划或退役记录。没有 head 的目录不按空集合删除。
+## 读取、回退与清理
 
-协作式 POSIX 锁、原子替换、同步能力是部署前提；没有后台保护服务。调用方须禁止清理期间的新读写并等待旧读取全部完成。外部文件篡改和硬件损坏不在双版本回退保证内。
+普通读取依次读取 marker、head 和所选 manifest，不扫描其他版本或预检数据文件。Binding 的路径选择无需磁盘访问。
+
+回退在修改锁内将 current 设为 rollback、rollback 设为空并增加 revision，使用相同的 head 替换机制。
+
+清理在维护窗口和修改锁内完整预检，先同步保留文件、清单与 head，再删除无引用内容。没有 head 时跳过。删除中断后重新计算即可。
+
+部署环境应提供协作式 POSIX 锁、同文件系统硬链接、原子替换和同步能力。文件路径是托管实现的一部分，调用方不应自行改写控制记录或封存文件。
