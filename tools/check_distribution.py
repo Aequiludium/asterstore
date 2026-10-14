@@ -44,7 +44,7 @@ assert repo.clean('data', quiescent=True).deleted_files == 2
 repo.rollback('data', expected_revision=3)
 assert repo.open('data').files()[0].read_bytes() == b'1'
 assert repo.describe('data').rollback is None
-print('Isolated format-2 installation OK:', installed)
+print('Isolated format-3 installation OK:', installed)
 """
 
 
@@ -128,6 +128,8 @@ def main() -> None:
                 "tools/check_distribution.py",
                 "examples/parquet.py",
                 "examples/two_versions.py",
+                "examples/managed_paths.py",
+                "tests/test_managed_paths.py",
                 "tests/test_two_version.py",
                 "tests/test_polars.py",
                 "src/asterstore/py.typed",
@@ -171,6 +173,13 @@ def main() -> None:
                 SMOKE,
                 version,
                 hashlib.sha256((root / "LICENSE").read_bytes()).hexdigest(),
+                cwd=smoke_directory,
+            )
+            run(
+                str(python),
+                "-I",
+                "-c",
+                (root / "examples/managed_paths.py").read_text(),
                 cwd=smoke_directory,
             )
             if args.polars:

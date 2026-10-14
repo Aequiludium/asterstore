@@ -126,3 +126,14 @@ def inventory(base: Path, directory: Path) -> tuple[list[Path], list[Path]]:
             else:
                 files.append(path)
     return files, directories
+
+
+def check_file_path(path: Path, *, missing: bool = False) -> Path:
+    """Validate a canonical absolute data path without assuming a store location."""
+    return checked(Path(path.anchor), path.relative_to(path.anchor).as_posix(), missing=missing)
+
+
+def sync_files(paths: set[Path]) -> None:
+    """Sync arbitrary data files and their directory chains."""
+    for path in paths:
+        sync_paths(Path(path.anchor), {path})

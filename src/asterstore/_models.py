@@ -12,7 +12,7 @@ from typing import Any
 
 from .errors import StoreCorruptionError, UnknownMemberError
 
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3
 
 
 def identifier(value: str) -> str:
@@ -66,10 +66,7 @@ class Member:
 
     def __post_init__(self) -> None:
         identifier(self.key)
-        relative(self.path)
-        if len(self.path.split("/")) < 2:
-            raise ValueError("object path requires a unique prefix and file name")
-        unique_id(self.path.split("/")[0])
+        relative(self.path[1:] if self.path.startswith("/") else self.path)
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,14 +102,13 @@ class Binding:
     manifest: Manifest
     revision: int | None
     base_revision: int
-    _objects: Path
     _paths: Mapping[str, Path] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(
             self,
             "_paths",
-            MappingProxyType({m.key: self._objects / m.path for m in self.manifest.members}),
+            MappingProxyType({m.key: self.root / m.path for m in self.manifest.members}),
         )
 
     @property

@@ -100,17 +100,52 @@ class Draft:
             manifest = self.repository._manifest(self.dataset_id, self._base.current)
             self._members.update((m.key, m.path) for m in manifest.members)
 
-    def allocate(self, key: str, *, relative_path: str = "data.bin") -> Path:
+    def adopt(self, key: str, path: str | Path) -> None:
+        """Transfer an existing immutable file to this dataset at seal, without moving it."""
+        self._require("editing")
+        identifier(key)
+        source = self.repository._input_path(self.dataset_id, path)
+        if not source.is_file():
+            raise ValueError("adopt requires an existing regular file")
+        if source.stat().st_nlink != 1:
+            raise ValueError("adopted files must have one hard link")
+        self._members[key] = self.repository._encode_path(source)
+
+    def allocate(
+        self, key: str, *, relative_path: str = "data.bin", path: str | Path | None = None
+    ) -> Path:
         self._require("editing")
         identifier(key)
         relative(relative_path)
-        path = f"{uuid4().hex}/{relative_path}"
-        temporary = self._directory / "staging" / self.version_id / path
+        if path is not None and relative_path != "data.bin":
+            raise ValueError("path and relative_path cannot both select a location")
+        suffix = f"{uuid4().hex}/{relative_path}"
+        destination = (
+            self._directory / "objects" / suffix
+            if path is None
+            else self.repository._input_path(self.dataset_id, path)
+        )
+        if destination.exists():
+            raise FileExistsError(destination)
+        encoded = self.repository._encode_path(destination)
+        if path is not None:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            fs.check_file_path(destination, missing=True)
+            # Reserve caller-selected paths exclusively. They remain caller-owned until
+            # seal records the claim, so a failed preflight never authorizes their deletion.
+            with fs.lock(self.repository.root, ".asterstore/ownership.lock"):
+                if destination in self.repository._claims(sync_deletions=True):
+                    raise FileExistsError(f"path is already owned: {destination}")
+                with destination.open("xb"):
+                    pass
+            self._members[key] = encoded
+            return destination
+        temporary = self._directory / "staging" / self.version_id / suffix
         fs.mkdir(
             self.repository.root, temporary.parent.relative_to(self.repository.root).as_posix()
         )
-        self._members[key] = path
-        self._new[path] = temporary
+        self._members[key] = encoded
+        self._new[encoded] = temporary
         return temporary
 
     def remove(self, key: str) -> None:
@@ -142,31 +177,47 @@ class Draft:
                 self.version_id,
                 tuple(Member(k, v) for k, v in self._members.items()),
             )
-            # Preflight all declared data, including reuse, before installing files.
-            for path in set(self._members.values()):
-                source = self._new.get(path, self._directory / "objects" / path)
-                fs.checked(repo.root, source.relative_to(repo.root).as_posix())
-                if not source.is_file():
-                    raise ValueError(f"declared member is not a file: {source}")
-                if path in self._new and source.stat().st_nlink != 1:
-                    raise ValueError("new files must have one hard link; copy external outputs")
-            for path in set(self._members.values()) & self._new.keys():
-                source = self._new[path]
-                destination = self._directory / "objects" / path
-                fs.mkdir(repo.root, destination.parent.relative_to(repo.root).as_posix())
-                os.link(source, destination)  # Exclusive installation; never overwrite.
+            custom_paths = any(
+                not repo._member_path(self.dataset_id, m.path).is_relative_to(
+                    self._directory / "objects"
+                )
+                for m in manifest.members
+            )
+            # Serialize ownership claims only; publication remains dataset-scoped.
+            with fs.lock(repo.root, ".asterstore/ownership.lock"):
+                claims = repo._claims(sync_deletions=custom_paths)
+                for value in set(self._members.values()):
+                    destination = repo._member_path(self.dataset_id, value)
+                    source = self._new.get(value, destination)
+                    fs.check_file_path(source)
+                    if not source.is_file():
+                        raise ValueError(f"declared member is not a file: {source}")
+                    owner = claims.get(destination)
+                    if owner is not None and owner != self.dataset_id:
+                        raise ValueError("file already belongs to another dataset")
+                    if value in self._new:
+                        fs.check_file_path(destination, missing=True)
+                        if destination.exists() or owner is not None:
+                            raise FileExistsError(destination)
+                    if (value in self._new or owner is None) and source.stat().st_nlink != 1:
+                        raise ValueError("new files must have one hard link")
+                # Persist ownership before completing seal, including in-place files.
+                manifest_path = self._directory / "versions" / f"{self.version_id}.json"
+                fs.write(
+                    repo.root,
+                    manifest_path.relative_to(repo.root).as_posix(),
+                    encode(manifest),
+                    exclusive=True,
+                    durable=custom_paths,
+                )
+            for value in set(self._members.values()) & self._new.keys():
+                source = self._new[value]
+                destination = repo._member_path(self.dataset_id, value)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                fs.check_file_path(destination, missing=True)
+                os.link(source, destination)
                 source.unlink()
-            manifest_path = self._directory / "versions" / f"{self.version_id}.json"
-            fs.write(
-                repo.root,
-                manifest_path.relative_to(repo.root).as_posix(),
-                encode(manifest),
-                exclusive=True,
-                durable=False,
-            )
-            self._binding = Binding(
-                repo.root, manifest, None, self.base_revision, self._directory / "objects"
-            )
+            self._binding = Binding(repo.root, manifest, None, self.base_revision)
             self._state = "sealed"
             return self._binding
         except BaseException:

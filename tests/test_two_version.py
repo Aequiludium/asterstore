@@ -1,4 +1,4 @@
-"""Behavioral and failure regressions for the replacement format-2 protocol."""
+"""Behavioral and failure regressions for the replacement format-3 protocol."""
 
 import json
 import multiprocessing

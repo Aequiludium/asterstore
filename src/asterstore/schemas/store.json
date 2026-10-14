@@ -1,18 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "AsterStore format 2 records",
+  "title": "AsterStore format 3 records",
   "$defs": {
     "id": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
     "text": {"type": "string", "minLength": 1},
     "member": {
       "type": "object", "additionalProperties": false,
       "required": ["key", "path"],
-      "properties": {"key": {"$ref": "#/$defs/text"}, "path": {"type": "string", "pattern": "^[0-9a-f]{32}/.+$"}}
+      "properties": {"key": {"$ref": "#/$defs/text"}, "path": {"type": "string", "minLength": 1}}
     }
   },
   "oneOf": [
     {"type": "object", "additionalProperties": false, "required": ["format_version", "store_id"],
-     "properties": {"format_version": {"const": 2}, "store_id": {"$ref": "#/$defs/id"}}},
+     "properties": {"format_version": {"const": 3}, "store_id": {"$ref": "#/$defs/id"}}},
     {"type": "object", "additionalProperties": false, "required": ["dataset_id", "revision", "current", "rollback"],
      "properties": {"dataset_id": {"$ref": "#/$defs/text"}, "revision": {"type": "integer", "minimum": 1, "maximum": 9223372036854775807}, "current": {"$ref": "#/$defs/id"}, "rollback": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}}},
     {"type": "object", "additionalProperties": false, "required": ["dataset_id", "version_id", "members"],
