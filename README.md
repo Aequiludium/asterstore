@@ -1,136 +1,68 @@
-<h1 align="center">asterstore</h1>
+# AsterStore
 
-<p align="center">
-  本地文件数据管理库<br>
-  <strong>轻量读取 · 显式发布 · 可恢复治理</strong>
-</p>
+AsterStore 管理普通文件的**当前版本和上一个安全版本**。每个数据集独立发布、回退和清理，核心无第三方运行依赖，不解释业务数据格式。
 
-<p align="center">
-  <a href="https://github.com/Aequiludium/asterstore/actions/workflows/ci.yml"><img src="https://github.com/Aequiludium/asterstore/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-  <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square" alt="Python 3.11+"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-52796F?style=flat-square" alt="Apache-2.0"></a>
-</p>
-
-<p align="center">
-  <a href="#快速开始">快速开始</a> ·
-  <a href="docs/api.md">API</a> ·
-  <a href="examples">示例</a> ·
-  <a href="docs/design.md">设计</a> ·
-  <a href="CONTRIBUTING.md">参与贡献</a>
-</p>
-
----
-
-数据仍然是普通文件。**asterstore 为它们管理发布、保留与回收**：哪些文件组成一次发布，哪些对象仍被任务使用，哪些残留可以清理。
-
-框架负责生产数据，Polars、Arrow 等引擎负责读取和计算。asterstore 连接这些环节，核心无第三方运行依赖，也不依赖 Aster 或任何业务框架。
-
-## 治理明确，读取轻量
-
-- **发布有边界。** 写入候选后显式提交，以原子切换使新发布可见；未变化的受管对象可以直接复用。
-- **读取走短路径。** 默认情况下，稳定状态打开当前发布只读两份控制记录；绑定后反复选择文件路径，不扫描目录、不逐文件预检、不计算内容哈希。
-- **保留由任务决定。** 需要的发布显式保留，使用完成后按引用版本释放；绑定或读取本身不产生保留记录。
-- **回收可以恢复。** 先预览，再按固定计划退役与删除；中断后沿原计划恢复，清理范围不扩大。
-
-### 两种管理方式，同一套模型
-
-| | 外部登记 · `registered` | 受管发布 · `managed` |
-| --- | --- | --- |
-| 数据由谁写入 | 现有程序或其他框架 | 通过候选写入与提交 |
-| 如何接入 | 声明已有文件及资源位置 | 创建对象，或复用已提交对象 |
-| 可以保留什么 | 发布元数据 | 发布元数据与受管文件 |
-| 文件由谁回收 | 外部生产者 | asterstore 按权属和保留关系回收 |
-
-两者共用 `Declaration`、`Binding` 和治理接口。登记外部文件不会改变其生产流程，也不会赋予库删除权。详见[声明与资源绑定](docs/declarations.md)。
-
-读、写和运维治理分开：读写可显式选择检查强度，默认 `check="none"`；全仓检查、数据集下线、数据回收和控制历史归档由调用方独立执行。检查开销发生在选定的阶段，`Binding.files()` 始终只做内存中的路径选择。
+当前开发版本为 **0.4.0，磁盘格式 2**。这是不兼容的架构替换：不读取或迁移格式 1，不提供永久历史、retention、跨数据集文件共享或持久事务恢复。已有生产目录不会自动转换。
 
 ## 快速开始
-
-需要 Python 3.11+，在你的 uv 项目中安装：
-
-```bash
-uv add asterstore
-# 使用 Polars 接口时：
-uv add 'asterstore[polars]'
-```
-
-本文以 **0.3.0** 为准，新增读写可选检查、候选盘点、控制历史归档和整批下线；0.2.0 不包含这些接口。从源码开发见[贡献指南](CONTRIBUTING.md)。
-
-**写入一次，显式发布。** 将下面代码保存为 `demo.py`，运行 `uv run python demo.py`：
 
 ```python
 from asterstore import Repository
 
-store = Repository("./demo-store")
-store.initialize(
-    resource_ids=["data"],
-    managed_resource_id="data",
-    lifecycle=True,
-)
+repo = Repository("/path/to/new-empty-store")
+repo.initialize()
 
-with store.prepare(
-    "measurements",
-    publication_id="run:1",
-    operation_id="write:1",
-    expected_generation=0,
-) as writer:
-    writer.write_bytes("readings", b"sensor,value\nA,21.5\n", relative_path="part.csv")
-    writer.commit()
+with repo.prepare("prices", expected_revision=0) as draft:
+    path = draft.allocate("day:2026-10-14", relative_path="date=2026-10-14/data.bin")
+    path.write_bytes(b"validated data")
+    candidate = draft.seal()
+    # 在这里检查 candidate.files()；失败就抛出异常，不提交。
+    head = draft.commit()
 
-# 捕获这次发布的成员与路径，交给文件读取或数据引擎。
-binding = store.open("measurements")
-print(binding.files(keys=["readings"])[0].read_text())
+binding = repo.open("prices")
+assert binding.files()[0].read_bytes() == b"validated data"
+
+with repo.prepare("prices", expected_revision=head.revision) as draft:
+    draft.reuse_current()
+    draft.allocate("day:2026-10-15").write_bytes(b"next day")
+    draft.seal()
+    head = draft.commit()
+
+repo.rollback("prices", expected_revision=head.revision)
+# 调用方已停止新读写任务，并等待全部旧读任务（含延迟计算）结束。
+repo.clean("prices", quiescent=True)
 ```
 
-`operation_id` 标识一次固定写入请求，`expected_generation` 用于检测并发更新。退出候选上下文不会自动提交；完整的复用与恢复流程见[发布示例](examples/managed_declarations.py)。
+## 保证与边界
 
-<details>
-<summary><strong>任务需要保留数据时</strong></summary>
+- current 与 rollback 在同一份 head 中原子切换。发布成功后，旧 current 成为 rollback。
+- 每个版本使用一份完整、不可变清单。文件只在同一数据集内部复用，已发布文件禁止原地修改。
+- 读取固定一次版本；Binding.files 不产生 I/O。发布期间已有读者可以继续使用旧文件。
+- 同一数据集的准备、发布、回退、清理使用修改锁；不同数据集独立。
+- seal 后才可 commit；上下文退出不自动提交。失败允许重跑，无跨进程 resume。
+- 回退后 rollback 为空，故障版本不成为安全回退版；下一次正常发布重建双版本。
+- 清理只能在调用方协调的无读写窗口执行。清理后不要再使用旧 Binding、Dataset 或 LazyFrame。
+- 清理后最多两份正式清单。两次清理之间旧版本和失败遗留仍占空间；需安排清理周期。
+- 默认 durable=True；弱持久化不保证机器故障后提交仍存在。清理先同步保留状态再删除。
+- 依赖协作式 POSIX 文件锁和同文件系统原子替换，不防御其他进程恶意改写仓库。回退不是备份。
 
-在可能并发回收的场景中，先建立对象保留，再通过该引用读取。以下代码接续上面的示例：
+可选 Polars 适配器：`pip install 'asterstore[polars]'`，使用 `asterstore.integrations.polars.scan_parquet(binding, keys=...)`。普通成员可以是 JSON、Parquet 或其他文件，不需要插件声明其删除语义。
 
-```python
-from asterstore import RetentionScope
+## 文档与验证
 
-held = store.governance.retain("analysis", "measurements", "run:1", scope=RetentionScope.OBJECTS)
-try:
-    inputs = store.governance.open("analysis", expected_revision=held.revision)
-    print(inputs.files()[0].read_text())
-finally:
-    store.governance.release("analysis", expected_revision=held.revision)
-```
-
-释放引用不会立即删除文件。回收需显式调用，且仍保护当前发布及其他任务保留的对象。参见[治理示例](examples/governance.py)与[候选清理](examples/cleanup.py)。
-
-</details>
-
-**使用 Polars**，可在源码仓库中运行增量发布、延迟查询与回收的完整示例：
+- [API](docs/api.md)、[磁盘协议](docs/protocol.md)、[设计边界](docs/design.md)
+- [不兼容变化](docs/migration-v2.md)、[发布与回退](docs/publishing.md)、[清理](docs/cleanup.md)
+- [双版本示例](examples/two_versions.py)、[Parquet 示例](examples/parquet.py)
+- [规模验证](benchmarks/README.md)、[发布构建](docs/releasing.md)
 
 ```bash
 uv sync --locked --extra polars
-uv run --locked --extra polars python examples/parquet.py
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy
+uv run python tools/check_protocol.py
+uv run python tools/check_distribution.py --polars
 ```
 
-## 文档导航
-
-| 想了解什么 | 从这里开始 |
-| --- | --- |
-| 使用接口与读取引擎 | [API](docs/api.md) · [引擎接入](docs/integrations.md) · [示例](examples) |
-| 发布、保留与回收如何工作 | [发布](docs/publishing.md) · [治理](docs/governance.md) · [候选清理](docs/cleanup.md) |
-| 诊断与显式检查（0.2.0 起） | [范围与并发约定](docs/inspection.md) · [示例](examples/inspection.py) |
-| 读写检查与候选盘点（0.3.0 起） | [检查选项与错误状态](docs/optional-checks.md) · [示例](examples/optional_checks.py) |
-| 整批过期数据下线（0.3.0 起） | [下线、恢复与 GC](docs/dataset-decommission.md) · [示例](examples/decommission_datasets.py) |
-| 控制历史归档（0.3.0 起） | [维护窗口与兼容性](docs/control-compaction.md) · [示例](examples/archive_history.py) |
-| 模型与磁盘格式 | [设计原则](docs/design.md) · [项目结构](docs/architecture.md) · [协议](docs/protocol.md) |
-| 开发、验证与贡献 | [开发指南](docs/development.md) · [性能验证](benchmarks/README.md) · [贡献指南](CONTRIBUTING.md) |
-
-## 项目状态
-
-**当前版本：[`0.3.0`](https://pypi.org/project/asterstore/0.3.0/)**，新增可选读写检查、控制历史归档和整批数据集下线。已完成 Aster 真实分钟行情的本地受管接入，验证发布、增量复用、读取、保留与回收；详见[接入验收](docs/aster-integration.md)。[诊断与检查](docs/inspection.md)需要 0.2.0 或更高版本；实际发行状态以 PyPI 和 GitHub Release 为准。
-
-当前验证范围为本地 Linux/POSIX；NFS 等共享挂载需要单独验证。核心以单个数据集发布为提交单位。0.3.0支持显式 [控制历史压缩](docs/control-compaction.md)，保留原路径身份、历史和重试语义；不是自动后台任务。支持范围与后续工作见[首版范围](docs/release-scope.md)、[路线图](docs/roadmap.md)及[格式边界](docs/compatibility.md)。
-
----
-
-[Apache-2.0](LICENSE) · [变更记录](CHANGELOG.md) · [安全报告](SECURITY.md) · [问题反馈](https://github.com/Aequiludium/asterstore/issues)
+旧格式专属测试和示例已随协议替换退出当前套件，旧实现保存在 Git 历史。新的测试覆盖并发写入、进程退出、提交响应不确定、回退、清理中断、路径边界和重复发布后的容量上界。

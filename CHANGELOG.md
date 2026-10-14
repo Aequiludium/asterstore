@@ -1,3 +1,10 @@
+# 0.4.0 — Unreleased
+
+- Replace format 1 with dataset-scoped current/rollback publication (format 2).
+- Remove permanent history, retention, resume and global governance.
+- Add quiescent dataset cleanup and bounded-metadata regression checks.
+- Breaking API/storage change; no automatic production migration.
+
 # Changelog
 
 ## Unreleased

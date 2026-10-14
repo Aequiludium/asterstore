@@ -1,90 +1,33 @@
-"""Local data declarations, explicit publication, and lightweight bindings."""
+"""Dataset-scoped immutable files with current/rollback publication."""
 
+from ._models import Binding, CleanResult, Head, Manifest, Member
 from .errors import (
     AsterStoreError,
-    CandidateAbandonedError,
     CandidateStateError,
-    DataCheckError,
-    DatasetDecommissionedError,
-    HistoryUnavailableError,
-    InvalidDeclarationError,
     PublicationConflictError,
     PublicationNotFoundError,
-    PublicationRetiredError,
-    ReferenceConflictError,
-    ReferenceNotFoundError,
-    RepositoryBusyError,
     RepositoryNotInitializedError,
-    ResourceNotBoundError,
     StoreCorruptionError,
     UnknownMemberError,
-    UnsupportedCapabilityError,
-    UnsupportedPlatformError,
+    UnsupportedFormatError,
 )
-from .governance import (
-    CleanupPreview,
-    CleanupResult,
-    Governance,
-    GovernancePreview,
-    GovernanceResult,
-)
-from .metadata.capabilities import (
-    ByteStability,
-    Capabilities,
-    HistoryAccess,
-    Management,
-    RetentionScope,
-)
-from .metadata.declarations import Declaration
-from .metadata.membership import FileSet, Locator, Member, Object
-from .metadata.protocol import DeclarationRecord, FixedRetention, ObjectRecord, StoreRecord
-from .publishing import Candidate, CandidateStatus
-from .reading import Binding
-from .registration import RegistrationStatus
+from .publishing import Draft
 from .repository import Repository
 
 __all__ = [
-    "DatasetDecommissionedError",
-    "CleanupPreview",
-    "CleanupResult",
-    "FixedRetention",
-    "Governance",
-    "GovernancePreview",
-    "GovernanceResult",
-    "Candidate",
-    "CandidateStatus",
-    "DeclarationRecord",
-    "ObjectRecord",
-    "StoreRecord",
-    "RegistrationStatus",
-    "ResourceNotBoundError",
-    "UnknownMemberError",
-    "UnsupportedCapabilityError",
-    "ByteStability",
-    "Capabilities",
-    "HistoryAccess",
-    "Management",
-    "RetentionScope",
-    "Declaration",
-    "FileSet",
-    "Locator",
-    "Member",
-    "Object",
-    "CandidateAbandonedError",
-    "PublicationRetiredError",
-    "ReferenceConflictError",
-    "ReferenceNotFoundError",
     "AsterStoreError",
     "Binding",
     "CandidateStateError",
-    "DataCheckError",
-    "InvalidDeclarationError",
-    "HistoryUnavailableError",
+    "CleanResult",
+    "Draft",
+    "Head",
+    "Manifest",
+    "Member",
     "PublicationConflictError",
     "PublicationNotFoundError",
     "Repository",
-    "RepositoryBusyError",
     "RepositoryNotInitializedError",
     "StoreCorruptionError",
-    "UnsupportedPlatformError",
+    "UnknownMemberError",
+    "UnsupportedFormatError",
 ]
