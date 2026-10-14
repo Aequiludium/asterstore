@@ -1,3 +1,5 @@
+> 历史文档：以下描述格式 1，不适用于当前格式 2。当前入口为仓库 README、docs/api.md 和 docs/protocol.md。
+
 # 版本与唯一格式边界
 
 `0.2.0` 在 0.1.0 上增加显式诊断和 Polars 2.x 支持，保持已有公开 API 与 `format_version=1`，现有仓库无需迁移。诊断的忙状态错误和类型导入路径见[诊断契约](inspection.md)。版本改动以 CHANGELOG 为准；源码提交不代表 PyPI 已提供该版本。

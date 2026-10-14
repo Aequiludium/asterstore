@@ -1,3 +1,5 @@
+> 历史文档：以下描述格式 1，不适用于当前格式 2。当前入口为仓库 README、docs/api.md 和 docs/protocol.md。
+
 # 显式成员、资源定位与能力声明
 
 状态：2026-09-25，已实现模型、资源绑定与读取，并已接入 [registered 持久登记](protocol.md)。managed 提交也已接入，见 [managed](publishing.md)；直接 metadata/objects 保留已接入，发布依赖闭包仍未实现。这些接口是通用输入模型，不依赖 Aster，也不加载任何业务元数据解码器。

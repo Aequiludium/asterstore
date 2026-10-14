@@ -2,7 +2,7 @@
 
 欢迎通过 [Issues](https://github.com/Aequiludium/asterstore/issues) 报告问题、讨论设计，通过 Pull Request 提交修改。漏洞请使用 [安全报告流程](SECURITY.md)。
 
-asterstore 当前处于 `0.1.0.dev1` 开发阶段，只有一套实现，尚未冻结公开 API。变更须说明行为、权属与恢复影响，并更新当前协议与测试；不维护历史开发草稿的兼容层。范围见[首版验收](docs/release-scope.md)。
+asterstore 当前开发版本为 0.4.0，采用格式 2 的数据集双版本协议。变更须说明原子可见性、回退和清理边界，并更新协议与测试；不维护格式 1 的运行时兼容层。见 [API](docs/api.md) 与 [协议](docs/protocol.md)。
 
 ## 开发环境
 
@@ -25,7 +25,7 @@ uv run --locked --extra polars pytest
 uv run --locked --extra polars python tools/check_distribution.py --polars
 ```
 
-依赖变化通过 `uv lock` 生成锁文件。普通代码修改无需更新锁文件。完整示例和规模 smoke 命令见 [开发指南](docs/development.md) 及 [CI](.github/workflows/ci.yml)。
+依赖变化通过 `uv lock` 生成锁文件。普通代码修改无需更新锁文件。完整示例见 examples/，规模检查见 [benchmarks](benchmarks/README.md) 与 [CI](.github/workflows/ci.yml)。
 
 ## 修改原则
 

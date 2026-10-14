@@ -1,3 +1,5 @@
+> 历史文档：以下描述格式 1，不适用于当前格式 2。当前入口为仓库 README、docs/api.md 和 docs/protocol.md。
+
 # 0.1.0 范围与发行门槛
 
 首版采用唯一 Declaration/FileSet 模型、store 格式和一套生命周期实现。

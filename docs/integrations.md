@@ -1,3 +1,5 @@
+> 历史文档：以下描述格式 1，不适用于当前格式 2。当前入口为仓库 README、docs/api.md 和 docs/protocol.md。
+
 # 引擎接入
 
 核心只返回精确文件路径，读取引擎自行解码、投影与过滤。可选 Polars 安装：`uv sync --locked --extra polars`。

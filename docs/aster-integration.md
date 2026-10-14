@@ -1,3 +1,5 @@
+> 历史文档：以下描述格式 1，不适用于当前格式 2。当前入口为仓库 README、docs/api.md 和 docs/protocol.md。
+
 # Aster 首个真实数据集验收
 
 2026-09-26，Aster 的 `aster-data[store]` 适配层接入 asterstore `0.1.0.dev1`（核心提交 `d120c598c2552d8b0c5bd79c29dae4d8b99bd44e`）。首版准备保持同一核心实现与磁盘格式。

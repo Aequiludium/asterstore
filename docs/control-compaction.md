@@ -1,3 +1,5 @@
+> 历史文档：以下描述格式 1，不适用于当前格式 2。当前入口为仓库 README、docs/api.md 和 docs/protocol.md。
+
 # 控制历史归档与压缩
 
 此功能自 0.3.0 提供。只有显式调用 compact 才启用新的 `control_archive` 必要功能；普通初始化和读写不自动迁移。

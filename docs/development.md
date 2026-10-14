@@ -1,3 +1,5 @@
+> 历史文档：以下描述格式 1，不适用于当前格式 2。当前入口为仓库 README、docs/api.md 和 docs/protocol.md。
+
 # 开发与构建
 
 使用 uv 0.10.7 或更高版本；后端 `uv_build>=0.10.7,<0.13`。最低 Python 3.11，默认开发解释器为 3.12。核心零第三方运行依赖；Polars 为可选 extra，jsonschema 只用于开发校验。
