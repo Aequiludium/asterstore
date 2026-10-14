@@ -1,13 +1,12 @@
-# 0.4.0 — Unreleased
-
-- Replace format 1 with dataset-scoped current/rollback publication (format 2).
-- Remove permanent history, retention, resume and global governance.
-- Add quiescent dataset cleanup and bounded-metadata regression checks.
-- Breaking API/storage change; no automatic production migration.
-
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-10-14
+
+- 数据集独立原子发布，保留 current 与 rollback 两个版本。
+- 支持成员复用、替换、删除，以及发布前候选检查。
+- 支持 revision 冲突检测、条件回退与维护窗口清理。
+- 核心无第三方运行依赖，可选 Polars 适配器支持固定成员扫描。
+- 完整更新使用、API、协议和维护文档；覆盖发布、回退、清理及故障边界的回归测试。
 
 ## 0.3.0 — 2026-10-14
 
