@@ -41,10 +41,7 @@ assert result.complete and not result.conflicts
 ```python
 # 名称由业务过期规则决定；generation 来自当前状态观察。
 expired = ["batch:2025-01", "batch:2025-02"]
-targets = {
-    dataset: repo.governance.dataset_status(dataset).generation
-    for dataset in expired
-}
+targets = {dataset: repo.governance.dataset_status(dataset).generation for dataset in expired}
 result = repo.governance.decommission("expire:2025", datasets=targets)
 if result.conflicts or not result.complete:
     raise RuntimeError(f"下线未全部成功，请检查任务状态：{result}")
