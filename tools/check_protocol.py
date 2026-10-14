@@ -1,69 +1,37 @@
-"""Validate the current wire schema and examples; no historical API freeze."""
-
-from __future__ import annotations
+"""Validate emitted format-2 records against schema and strict codecs."""
 
 import json
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from tempfile import TemporaryDirectory
 
-import jsonschema  # type: ignore[import-untyped]  # Development-only schema validator.
+import jsonschema  # type: ignore[import-untyped]
 
-from asterstore import StoreCorruptionError
-from asterstore.metadata import protocol
-
-CODECS: dict[str, tuple[Callable[[bytes], Any], Callable[[Any], bytes]]] = {
-    "dataset_tombstone": (protocol.decode_tombstone, protocol.encode_tombstone),
-    "decommission_plan": (protocol.decode_decommission_plan, protocol.encode_decommission_plan),
-    "store": (protocol.decode_store, protocol.encode_store),
-    "archive_reference": (protocol.decode_reference, protocol.encode_reference),
-    "control_checkpoint": (protocol.decode_checkpoint, protocol.encode_checkpoint),
-    "publication": (protocol.decode_declaration_record, protocol.encode_declaration_record),
-    "object": (protocol.decode_object_record, protocol.encode_object_record),
-    "managed_request": (protocol.decode_managed_request, protocol.encode_managed_request),
-    "fixed_retention": (protocol.decode_retention, protocol.encode_retention),
-    "retired_declaration": (protocol.decode_retired, protocol.encode_retired),
-    "governance_plan": (protocol.decode_governance_plan, protocol.encode_governance_plan),
-    "governance_progress": (
-        protocol.decode_governance_progress,
-        protocol.encode_governance_progress,
-    ),
-    "managed_abandonment": (
-        protocol.decode_managed_abandonment,
-        protocol.encode_managed_abandonment,
-    ),
-    "managed_cleanup_plan": (
-        protocol.decode_managed_cleanup_plan,
-        protocol.encode_managed_cleanup_plan,
-    ),
-    "managed_cleanup_progress": (
-        protocol.decode_managed_cleanup_progress,
-        protocol.encode_managed_cleanup_progress,
-    ),
-}
+from asterstore import Repository
+from asterstore._models import decode_head, decode_manifest, encode
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parents[1]
-    schema = json.loads((root / "src/asterstore/metadata/schemas/store.json").read_text())
+    schema = json.loads(
+        (Path(__file__).resolve().parents[1] / "src/asterstore/schemas/store.json").read_text()
+    )
     jsonschema.Draft202012Validator.check_schema(schema)
-    validator = jsonschema.Draft202012Validator(schema)
-    kinds: set[str] = set()
-    for path in sorted((root / "tests/fixtures/protocol").rglob("*.json")):
-        data = path.read_bytes()
-        value = json.loads(data)
-        if "invalid" in path.parts:
-            try:
-                CODECS[value["kind"]][0](data)
-            except (ValueError, StoreCorruptionError):
-                continue
-            raise AssertionError(f"invalid fixture accepted: {path}")
-        validator.validate(value)
-        decode, encode = CODECS[value["kind"]]
-        assert json.loads(encode(decode(data))) == value, path
-        kinds.add(value["kind"])
-    assert kinds == set(CODECS), (kinds, set(CODECS))
-    print(f"Current protocol: PASS ({len(kinds)} record kinds)")
+    with TemporaryDirectory() as temporary:
+        repo = Repository(temporary)
+        repo.initialize()
+        for _ in range(2):
+            with repo.prepare("dataset", durable=False) as draft:
+                draft.allocate("member").write_bytes(b"value")
+                draft.seal()
+                draft.commit()
+        for path in Path(temporary).rglob("*.json"):
+            data = path.read_bytes()
+            value = json.loads(data)
+            jsonschema.validate(value, schema)
+            if path.name == "head.json":
+                assert encode(decode_head(data)) == data
+            elif path.name != "format.json":
+                assert encode(decode_manifest(data)) == data
+    print("Current protocol: PASS (format 2, 3 record shapes)")
 
 
 if __name__ == "__main__":

@@ -92,9 +92,7 @@ jobs:
           done
       - name: Scale smoke checks
         run: |
-          uv run --locked --extra polars python benchmarks/parquet_read.py --files 1 4 --rows 16 --repeats 2 --selections 10
-          uv run --locked --extra polars python benchmarks/managed_membership.py --members 128 1024
-          uv run --locked --extra polars python benchmarks/governance_scale.py --history 1 3 --datasets 2 --references 0 2 --logs 0 2 --repeats 1
+          uv run --locked --extra polars python benchmarks/retention_scale.py --publications 30 --members 128
       - name: Save test results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
