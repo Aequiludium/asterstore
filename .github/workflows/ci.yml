@@ -60,7 +60,7 @@ jobs:
       - run: uv sync --locked --extra polars
       - name: Select compatibility version without rewriting the lockfile
         run: uv pip install "polars==${{ matrix.polars }}"
-      - run: uv run --no-sync pytest tests/test_polars.py tests/test_io_contract.py
+      - run: uv run --no-sync pytest tests/test_polars.py tests/test_two_version.py
       - run: uv run --no-sync python examples/parquet.py
 
   tests:
