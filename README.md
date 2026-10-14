@@ -1,68 +1,75 @@
 # AsterStore
 
-AsterStore 管理普通文件的**当前版本和上一个安全版本**。每个数据集独立发布、回退和清理，核心无第三方运行依赖，不解释业务数据格式。
+AsterStore 为普通文件提供数据集级别的原子发布、一次回退和维护清理。适合定期生成数据、日常读取最新结果、保留上一份成功结果的工作流。
 
-当前开发版本为 **0.4.0，磁盘格式 2**。这是不兼容的架构替换：不读取或迁移格式 1，不提供永久历史、retention、跨数据集文件共享或持久事务恢复。已有生产目录不会自动转换。
+每个数据集有两个版本槽位：`current` 用于日常读取，`rollback` 保存上一次成功发布的 current。文件和描述它们的元数据可以一起发布。核心不解释文件内容，没有第三方运行依赖。
+
+## 安装
+
+要求 Python 3.11+，以及支持 POSIX 文件锁、硬链接和原子替换的文件系统。从当前仓库安装：
+
+```bash
+pip install 'git+https://github.com/Aequiludium/asterstore.git@main'
+# 需要可选的 Parquet 扫描适配器时：
+pip install 'asterstore[polars] @ git+https://github.com/Aequiludium/asterstore.git@main'
+```
+
+需要固定部署内容时，将 `main` 换成经过验证的提交 SHA。
 
 ## 快速开始
 
+下面的示例使用临时目录，可以直接运行：
+
 ```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 from asterstore import Repository
 
-repo = Repository("/path/to/new-empty-store")
-repo.initialize()
+with TemporaryDirectory() as temporary:
+    repo = Repository(Path(temporary) / "store")
+    repo.initialize()
 
-with repo.prepare("prices", expected_revision=0) as draft:
-    path = draft.allocate("day:2026-10-14", relative_path="date=2026-10-14/data.bin")
-    path.write_bytes(b"validated data")
-    candidate = draft.seal()
-    # 在这里检查 candidate.files()；失败就抛出异常，不提交。
-    head = draft.commit()
+    with repo.prepare("prices", expected_revision=0) as draft:
+        draft.allocate("data").write_bytes(b"first result")
+        candidate = draft.seal()
+        assert candidate.files(keys=["data"])[0].read_bytes() == b"first result"
+        head = draft.commit()
 
-binding = repo.open("prices")
-assert binding.files()[0].read_bytes() == b"validated data"
+    with repo.prepare("prices", expected_revision=head.revision) as draft:
+        draft.reuse_current()
+        draft.allocate("data").write_bytes(b"second result")
+        draft.seal()
+        head = draft.commit()
 
-with repo.prepare("prices", expected_revision=head.revision) as draft:
-    draft.reuse_current()
-    draft.allocate("day:2026-10-15").write_bytes(b"next day")
-    draft.seal()
-    head = draft.commit()
+    assert repo.open("prices").files()[0].read_bytes() == b"second result"
+    repo.rollback("prices", expected_revision=head.revision)
+    assert repo.open("prices").files()[0].read_bytes() == b"first result"
 
-repo.rollback("prices", expected_revision=head.revision)
-# 调用方已停止新读写任务，并等待全部旧读任务（含延迟计算）结束。
-repo.clean("prices", quiescent=True)
+    # 此例没有并行读写；实际应用须先停止新任务并等待已有读取完成。
+    repo.clean("prices", quiescent=True)
 ```
 
-## 保证与边界
+## 工作方式
 
-- current 与 rollback 在同一份 head 中原子切换。发布成功后，旧 current 成为 rollback。
-- 每个版本使用一份完整、不可变清单。文件只在同一数据集内部复用，已发布文件禁止原地修改。
-- 读取固定一次版本；Binding.files 不产生 I/O。发布期间已有读者可以继续使用旧文件。
-- 同一数据集的准备、发布、回退、清理使用修改锁；不同数据集独立。
-- seal 后才可 commit；上下文退出不自动提交。失败允许重跑，无跨进程 resume。
-- 回退后 rollback 为空，故障版本不成为安全回退版；下一次正常发布重建双版本。
-- 清理只能在调用方协调的无读写窗口执行。清理后不要再使用旧 Binding、Dataset 或 LazyFrame。
-- 清理后最多两份正式清单。两次清理之间旧版本和失败遗留仍占空间；需安排清理周期。
-- 默认 durable=True；弱持久化不保证机器故障后提交仍存在。清理先同步保留状态再删除。
-- 依赖协作式 POSIX 文件锁和同文件系统原子替换，不防御其他进程恶意改写仓库。回退不是备份。
+- **发布**：准备文件，封存完整成员清单，完成业务检查，显式提交。current 与 rollback 一起原子切换。
+- **读取**：一次 open 固定一个版本；后续发布不会自动改变这个 Binding。
+- **复用**：继承 current 的成员，只写变化的文件。复用限于同一数据集。
+- **回退**：将 rollback 提升为 current，清空 rollback；下次成功发布重新保留两个版本。
+- **清理**：在调用方协调的维护窗口内，删除两个保留版本之外的文件和清单。
 
-可选 Polars 适配器：`pip install 'asterstore[polars]'`，使用 `asterstore.integrations.polars.scan_parquet(binding, keys=...)`。普通成员可以是 JSON、Parquet 或其他文件，不需要插件声明其删除语义。
+已封存文件必须保持不可变。发布可以与读取并行，清理必须等待全部相关读取结束，包括延迟计算最后一次文件访问。`quiescent=True` 是调用方的声明，不会自动暂停读者。
 
-## 文档与验证
+默认启用持久化同步。提交报错可能发生在原子切换之后，需要读取 head 核实结果。两个版本用于操作回退，不代替备份。
 
-- [API](docs/api.md)、[磁盘协议](docs/protocol.md)、[设计边界](docs/design.md)
-- [不兼容变化](docs/migration-v2.md)、[发布与回退](docs/publishing.md)、[清理](docs/cleanup.md)
-- [双版本示例](examples/two_versions.py)、[Parquet 示例](examples/parquet.py)
-- [规模验证](benchmarks/README.md)、[发布构建](docs/releasing.md)
+## 文档
 
-```bash
-uv sync --locked --extra polars
-uv run pytest
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy
-uv run python tools/check_protocol.py
-uv run python tools/check_distribution.py --polars
-```
+- [文档导航](docs/README.md)
+- [发布、增量更新与回退](docs/publishing.md)
+- [读取与 Parquet](docs/reading.md)
+- [维护清理](docs/cleanup.md)
+- [API 参考](docs/api.md)
+- [架构与边界](docs/design.md)、[磁盘协议](docs/protocol.md)
+- [开发指南](CONTRIBUTING.md)、[自动化](docs/automation.md)、[发行](docs/releasing.md)
 
-旧格式专属测试和示例已随协议替换退出当前套件，旧实现保存在 Git 历史。新的测试覆盖并发写入、进程退出、提交响应不确定、回退、清理中断、路径边界和重复发布后的容量上界。
+可运行示例：[双版本](examples/two_versions.py)、[Parquet](examples/parquet.py)。规模检查见 [benchmarks](benchmarks/README.md)。

@@ -1,35 +1,24 @@
-# 发行流程
+# 构建与发行
 
-下面是当前源码的构建与发行流程。格式 2 的核心验收见[重构验证记录](validation/two-version-refactor-2026-10-14.md)，不代表下游接入或生产迁移已完成。同一已发布版本不重建上传。
+## 本地验证
 
-## PyPI 身份：一次性配置
+```bash
+uv sync --locked --extra polars
+uv run --locked --extra polars python tools/check_distribution.py --polars --output-dir dist/verified
+```
 
-登录最终负责该项目的 PyPI 账号，在 [Publishing](https://pypi.org/manage/account/publishing/) 添加 pending GitHub publisher：
+输出目录应使用新的路径。脚本验证 wheel、从 sdist 重建的包及源码目录外的隔离安装，并记录制品 SHA-256 和验证结果。
 
-| 字段 | 值 |
-| --- | --- |
-| PyPI Project Name | `asterstore` |
-| Owner | `Aequiludium` |
-| Repository name | `asterstore` |
-| Workflow name | `publish.yml` |
-| Environment name | `pypi` |
+## GitHub 发行
 
-仓库端使用同名 GitHub environment；不需要把长期 PyPI token 放进仓库。PyPI 账号侧配置需账号持有人完成，GitHub 权限不能代替 PyPI 身份。pending publisher 不预留包名，名称最终可用性以首次发布成功为准。[PyPI 官方说明](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)。
+1. 更新版本、锁文件和 CHANGELOG，经 PR 合并到 main。
+2. 手动运行 [Publish](../.github/workflows/publish.yml)，选择 `publish=false` 演练完整流程。
+3. 确认该提交的测试、构建、隔离安装和制品选择全部成功。
+4. 准备正式上传时，在目标 main 提交上运行 `publish=true`。工作流重新验证，并上传同次运行验证过的 wheel 和 sdist。
+5. 核对包索引上的版本与文件哈希，验证独立安装，再创建对应 Git tag 和 Release。
 
-## 验证与上传
+工作流只允许 main，上传步骤使用 `pypi` environment 和 OIDC 身份。项目的 Trusted Publisher 应对应仓库 `Aequiludium/asterstore`、工作流 `publish.yml`、环境 `pypi`；实际授权状态须在发行前核实。
 
-1. 更新 pyproject.toml、uv.lock 和 CHANGELOG，合并经过 CI/CodeQL 的发行提交。
-2. 在 main 手动运行 [Publish](../.github/workflows/publish.yml)，先选择 `publish=false` 做完整演练。
-3. 工作流复用质量/协议、Python 3.11/3.12 测试和隔离发行验证。选取同次运行中 Python 3.12 构建的 wheel/sdist，核对版本、文件名、验证项目和 SHA-256，单独保存上传制品。
-4. PyPI publisher 已配置后，以 `publish=true` 运行同一工作流。它重新验证目标提交，并仅上传该次验证过的两个文件，不在上传任务中重新构建；OIDC 权限只授予上传任务。
-5. 核对 PyPI 的版本及文件哈希，完成从 PyPI 的独立安装验证，再创建对应 Git tag/Release 并记录完成状态。下游项目可继续使用固定 Git 提交；是否切换到 PyPI 依赖由各项目单独决定。
+上传任务不重建文件，也不启用 skip-existing。同一包版本应对应同一组制品；部分上传失败时先比较已上传文件与验证制品的哈希，再处理剩余文件。
 
-普通 CI、PR、main 推送不会自动上传。Publish 仅允许 main，默认演练；不启用 skip-existing 掩盖部分上传或同版本冲突。若发生部分上传，先对比 PyPI 与本次已验证文件的 SHA-256，再决定如何补齐；不重建同版本的不同字节。
-
-本地也可运行 `tools/check_distribution.py --polars --output-dir dist/0.4.0-verified`。每次使用新目录；验证报告记录来源摘要、许可证、安装结果和文件 SHA-256。自动化权限见[仓库自动化](automation.md)。
-
-
-普通 PR 的 CI 也会运行 `Release artifact verification`：下载本次构建的 Python 3.12
-发行制品，用与发布相同的选择脚本校验文件名、版本、验收项目、大小和 SHA-256，
-并纳入 CI gate。此步骤不触发 PyPI 上传，也不申请发布身份；用于在合并前验证
-上传/下载 Action 的实际衔接。手动发布仍重新执行完整验收，并复用该次运行的制品。
+普通 PR 和 main CI 包含制品下载验证，但不执行上传。开发检查与贡献约定见 [CONTRIBUTING](../CONTRIBUTING.md)。

@@ -2,7 +2,7 @@
 
 欢迎通过 [Issues](https://github.com/Aequiludium/asterstore/issues) 报告问题、讨论设计，通过 Pull Request 提交修改。漏洞请使用 [安全报告流程](SECURITY.md)。
 
-asterstore 当前开发版本为 0.4.0，采用格式 2 的数据集双版本协议。变更须说明原子可见性、回退和清理边界，并更新协议与测试；不维护格式 1 的运行时兼容层。见 [API](docs/api.md) 与 [协议](docs/protocol.md)。
+asterstore 采用数据集双版本协议。变更须说明原子可见性、回退和清理边界，并更新协议与测试。见 [API](docs/api.md) 与 [协议](docs/protocol.md)。
 
 ## 开发环境
 
@@ -33,7 +33,7 @@ uv run --locked --extra polars python tools/check_distribution.py --polars
 - 普通 Binding 选择保持无治理 I/O；不要为每次读取增加扫描、保留写入、存在性或内容检查。
 - 子包通过明确接口协作；私有实现不是公共兼容承诺。
 - 发布、引用、删除的行为变化要说明生效点、锁顺序、异常后可见状态、原操作重试与恢复范围。
-- 修改持久格式时同步检查 Schema、codec、协议回归测试和兼容文档；不能只改格式标记绕过版本限制。
+- 修改持久格式时同步检查 Schema、codec、协议回归测试和使用文档；不能只改格式标记绕过版本限制。
 - 回归测试验证可观察的语义与真实失败边界。性能结论提供规模、环境和成本分解，不依赖单次墙钟阈值。
 - 试验使用临时或专用隔离目录。实际数据迁移和生产治理不是测试步骤。
 
