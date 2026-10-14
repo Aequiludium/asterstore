@@ -50,6 +50,23 @@ with TemporaryDirectory() as temporary:
     repo.clean("prices", quiescent=True)
 ```
 
+## 文件路径
+
+已有数据可以原位接管，不复制、不移动、不建立硬链接：
+
+```python
+with repo.prepare("prices") as draft:
+    draft.adopt("data", "/data/prices/existing.parquet")
+    draft.seal()
+    draft.commit()
+```
+
+新文件使用 `draft.allocate("data", path="/data/prices/new.parquet")` 指定完整路径。它独占创建并返回该路径，已有文件不会被覆盖。省略 path 时使用仓库默认布局。
+
+相对路径以仓库根为基准，绝对路径可以位于仓库外、不同文件系统。seal 记录归属后，文件必须保持不可变，并允许 clean 在不再被保留版本引用时删除它。未封存的自定义路径文件仍由调用方处理。
+
+完整示例见 [managed_paths.py](examples/managed_paths.py)，边界见[文件路径与归属](docs/paths.md)。
+
 ## 工作方式
 
 - **发布**：准备文件，封存完整成员清单，完成业务检查，显式提交。current 与 rollback 一起原子切换。

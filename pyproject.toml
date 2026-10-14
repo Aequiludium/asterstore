@@ -1,6 +1,6 @@
 [project]
 name = "asterstore"
-version = "0.4.0"
+version = "0.4.1"
 description = "Dataset-scoped immutable files with current and rollback versions"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -1,4 +1,4 @@
-"""Validate emitted format-2 records against schema and strict codecs."""
+"""Validate emitted format-3 records against schema and strict codecs."""
 
 import json
 from pathlib import Path
@@ -31,7 +31,7 @@ def main() -> None:
                 assert encode(decode_head(data)) == data
             elif path.name != "format.json":
                 assert encode(decode_manifest(data)) == data
-    print("Current protocol: PASS (format 2, 3 record shapes)")
+    print("Current protocol: PASS (format 3, 3 record shapes)")
 
 
 if __name__ == "__main__":

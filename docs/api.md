@@ -29,13 +29,14 @@ Draft 必须通过上下文管理器使用。进入后可编辑，seal 后可检
 | `version_id` | 库生成的版本 ID，提交前已确定 |
 | `base_revision` | 进入上下文后确认的基线 revision，首次发布为 0 |
 | `reuse_current()` | 在空草稿上调用一次，继承 current 的全部成员 |
-| `allocate(key, relative_path="data.bin")` | 返回新文件的私有写入 Path；同名 key 替换，新 key 追加 |
+| `allocate(key, relative_path="data.bin", path=None)` | 返回新文件写入路径；path 指定准确位置，否则使用默认 staging；同名 key 替换，新 key 追加 |
+| `adopt(key, path)` | 加入原路径已有普通文件；seal 记录接管归属，不移动数据 |
 | `remove(key)` | 从草稿成员集中移除 key，不删除已发布文件 |
 | `alias(new_key, existing_key)` | 添加一个引用已有成员文件的不同 key |
 | `seal()` | 固定完整成员清单，返回候选 Binding，不发布 |
 | `commit()` | 要求已封存；原子切换 head，返回 Head |
 
-allocate 不写入文件内容。seal 前必须写完并关闭文件，新文件必须只有一个硬链接。未被最终成员引用的临时文件不会安装。封存文件之后不得修改。
+allocate 不写入业务内容；指定 path 时独占创建空文件。自定义路径与接管权限见[路径与归属](paths.md)。seal 前必须写完并关闭文件，新文件必须只有一个硬链接。未被最终成员引用的临时文件不会安装。封存文件之后不得修改。
 
 sealed 状态下重复 seal 返回同一 Binding；同一存活 Draft 成功 commit 后重复调用返回已知 Head。seal 或 commit 抛出异常后 Draft 失效。提交异常可能发生在 head 切换之后，处理方式见[发布与回退](publishing.md)。
 
@@ -43,7 +44,7 @@ sealed 状态下重复 seal 返回同一 Binding；同一存活 Draft 成功 com
 
 **Head**：dataset_id、revision、current、rollback。rollback 为版本 ID 或 None。
 
-**Manifest**：dataset_id、version_id、members。members 是有序 Member 元组，每个 Member 包含 key 和相对对象路径 path。
+**Manifest**：dataset_id、version_id、members。members 是有序 Member 元组，每个 Member 包含 key 和仓库相对路径或绝对路径 path。
 
 **Binding**：root、dataset_id、version_id、manifest、revision、base_revision，以及 `files(keys=None)`。
 

@@ -16,7 +16,7 @@ with repo.prepare("prices", expected_revision=0) as draft:
 
 此片段中的 payload 和 validate 由调用方提供。实际写入器必须在 seal 前关闭。完整示例见 [two_versions.py](../examples/two_versions.py)。
 
-seal 安装文件并固定成员清单，但不改变 current。候选 Binding 可用于检查完整数据。commit 才是发布生效点。退出上下文不会自动提交，也不会自动清除失败产物。
+seal 记录文件归属、安装默认 staging 文件并固定成员清单，但不改变 current。候选 Binding 可用于检查完整数据。commit 才是发布生效点。退出上下文不会自动提交，也不会自动清除失败产物。
 
 ## 增量更新
 
@@ -35,7 +35,7 @@ with repo.prepare("prices", expected_revision=binding.revision) as draft:
 
 业务元数据也可以写入普通成员。`draft.version_id` 在发布前已确定，可以写入元数据；更新数据时应一起更新对应的业务说明。
 
-外部输出可复制到 allocate 返回的路径。新文件封存时必须只有一个硬链接；复用使用清单引用，不通过外部硬链接导入。seal 后不得修改文件或继续使用仍可写的文件描述符。
+外部输出可用 adopt 原位接管；新文件可用 allocate(path=...) 指定存放位置，详见[路径与归属](paths.md)。也可复制到默认 allocate 返回的路径。新文件封存时必须只有一个硬链接；复用使用清单引用，不通过外部硬链接导入。seal 后不得修改文件或继续使用仍可写的文件描述符。
 
 ## 并发与失败
 
@@ -60,4 +60,4 @@ head = repo.rollback("prices", expected_revision=head.revision)
 
 每次 commit 都推进两个槽位。库不识别计算批次或每日任务；一次 commit 就是一次发布。
 
-prepare 和 rollback 默认 `durable=True`。关闭同步仍保留原子切换，但不保证机器故障后的持久性。
+prepare 和 rollback 默认 `durable=True`。关闭同步仍保留原子切换，但不保证机器故障后的持久性。涉及自定义路径的 seal 仍同步归属清单，以免失去文件回收依据。
