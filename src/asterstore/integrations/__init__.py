@@ -1,1 +1,0 @@
-"""Optional file-engine adapters."""

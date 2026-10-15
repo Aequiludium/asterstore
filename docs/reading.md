@@ -1,33 +1,17 @@
-# 固定版本读取
+# 读取与 Hive
+
+调用 `dataset.current()` 获取当前发布元数据，通过数据集目录读取正式文件。该方法不枚举分区，也不返回永久文件快照；发现活动安装或恢复记录时拒绝读取。
+
+Polars 可以直接使用：
 
 ```python
-binding = repo.open("prices")
-paths = binding.files(keys=["data"])
+state = dataset.current()
+frame = pl.scan_parquet(dataset.root / "date=*/data.parquet", hive_partitioning=True)
+result = frame.collect()
 ```
 
-open 读取当前 head 和所选版本清单，返回固定 Binding。之后的发布不会刷新这个对象。`version="rollback"` 可读取回退槽位；槽位不存在时抛出 PublicationNotFoundError。
+调用方必须保证从读取状态到最后一次文件访问之间不进入安装、回退或恢复。`current()` 的一次状态检查不能消除检查后发布的竞争；这由调用方的维护窗口协调保证。
 
-files 返回 Path 元组，省略 keys 时按清单顺序返回所有成员，指定 keys 时按请求顺序返回。未知成员抛出 UnknownMemberError。选择路径不会 stat 文件、读取内容或登记读者。
+不要递归扫描整个数据集目录；隐藏 `.asterstore` 内可能有旧备份和新候选。使用与业务布局一致的明确 glob，例如行情的 `date=*/data.parquet`、factor 的 `version=v1/date=*/data.parquet`。
 
-如果成员集包含数据和 JSON 元数据，读取引擎应显式选择数据成员，避免把元数据文件交给 Parquet 扫描器。
-
-## Polars
-
-安装 polars 可选依赖后：
-
-```python
-from asterstore.integrations.polars import scan_parquet
-
-binding = repo.open("prices")
-frame = scan_parquet(binding, keys=["data"]).collect()
-```
-
-适配器使用明确文件列表并关闭 glob；`hive_partitioning=True` 可开启 Hive 分区解析。空文件选择无法推断 schema，会抛出 ValueError。列投影、过滤和聚合直接使用 Polars。
-
-完整可运行示例见 [parquet.py](../examples/parquet.py)。
-
-## 读取寿命
-
-Binding 和 LazyFrame 都不会自动保护文件。普通发布可以与它们并行；清理前必须等读取结束，包括 collect 或其他延迟操作中的最后一次 I/O。
-
-维护窗口结束后重新 open，不再使用窗口前的 Binding 或延迟查询。跨数据集分别 open 可以得到各自的固定版本，但不构成跨数据集的一致快照。
+不需要 AsterStore 的 Polars 适配器。可运行示例见 [parquet.py](../examples/parquet.py)。业务 schema、日期过滤与输入身份由调用方处理。

@@ -1,33 +1,25 @@
-"""Errors for the dataset-scoped two-version protocol."""
+"""Errors for directory transactions."""
 
 
 class AsterStoreError(Exception):
-    """Base error."""
+    """Base storage error."""
 
 
 class StoreCorruptionError(AsterStoreError):
-    """Invalid persistent state; never guess a replacement head."""
+    """Control state or owned paths are unsafe."""
 
 
 class UnsupportedFormatError(AsterStoreError):
-    """This client cannot operate on the store's format."""
-
-
-class RepositoryNotInitializedError(AsterStoreError, FileNotFoundError):
-    """No store marker exists."""
-
-
-class PublicationNotFoundError(AsterStoreError, FileNotFoundError):
-    """No publication exists in the requested slot."""
+    """The directory uses another protocol."""
 
 
 class PublicationConflictError(AsterStoreError):
-    """The expected dataset revision no longer matches."""
+    """The expected revision is stale."""
 
 
-class CandidateStateError(AsterStoreError):
-    """The draft is closed, failed, or in the wrong phase."""
+class RecoveryRequiredError(AsterStoreError):
+    """Finish recovery in a read maintenance window first."""
 
 
-class UnknownMemberError(AsterStoreError, KeyError):
-    """The manifest does not contain the requested logical member."""
+class NoRollbackError(AsterStoreError):
+    """No successful publication can be undone."""

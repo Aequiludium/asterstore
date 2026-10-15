@@ -1,92 +1,63 @@
 # AsterStore
 
-AsterStore 为普通文件提供数据集级别的原子发布、一次回退和维护清理。适合定期生成数据、日常读取最新结果、保留上一份成功结果的工作流。
+AsterStore 管理普通数据目录的一批文件变更，保存当前发布元数据，并保留撤销最近一次成功发布的材料。行情和 factor 可以共用同一个核心，数据保留自然的 Hive 路径。
 
-每个数据集有两个版本槽位：`current` 用于日常读取，`rollback` 保存上一次成功发布的 current。文件和描述它们的元数据可以一起发布。核心不解释文件内容，没有第三方运行依赖。
+每次只处理新增、替换或删除的文件；不构建历史分区的完整文件清单，不维护全局文件归属或版本引用图。核心没有第三方运行依赖。
 
-## 安装
+## 使用
 
-要求 Python 3.11+，以及支持 POSIX 文件锁、硬链接和原子替换的文件系统。从当前仓库安装：
+Python 3.11+，支持 POSIX 文件锁、文件与目录同步、原子替换的文件系统。源码安装：
 
 ```bash
-pip install 'git+https://github.com/Aequiludium/asterstore.git@main'
-# 需要可选的 Parquet 扫描适配器时：
-pip install 'asterstore[polars] @ git+https://github.com/Aequiludium/asterstore.git@main'
+pip install .
+# 运行可选的 Parquet 示例：
+pip install '.[polars]'
 ```
-
-需要固定部署内容时，将 `main` 换成经过验证的提交 SHA。
-
-## 快速开始
-
-下面的示例使用临时目录，可以直接运行：
 
 ```python
 from pathlib import Path
 from tempfile import TemporaryDirectory
-
 from asterstore import Repository
 
 with TemporaryDirectory() as temporary:
-    repo = Repository(Path(temporary) / "store")
+    root = Path(temporary)
+    repo = Repository(root / "registry")
     repo.initialize()
+    prices = repo.create_dataset("prices", root / "prices")
 
-    with repo.prepare("prices", expected_revision=0) as draft:
-        draft.allocate("data").write_bytes(b"first result")
-        candidate = draft.seal()
-        assert candidate.files(keys=["data"])[0].read_bytes() == b"first result"
-        head = draft.commit()
+    with prices.write(expected_revision=0) as batch:
+        batch.stage("date=2026-10-14/data.bin").write_bytes(b"day 14")
+        # 本例没有并发读者。真实部署需先停止新读取并等待已有读取完成。
+        batch.commit(metadata={"ready_through": "2026-10-14"}, quiescent=True)
 
-    with repo.prepare("prices", expected_revision=head.revision) as draft:
-        draft.reuse_current()
-        draft.allocate("data").write_bytes(b"second result")
-        draft.seal()
-        head = draft.commit()
-
-    assert repo.open("prices").files()[0].read_bytes() == b"second result"
-    repo.rollback("prices", expected_revision=head.revision)
-    assert repo.open("prices").files()[0].read_bytes() == b"first result"
-
-    # 此例没有并行读写；实际应用须先停止新任务并等待已有读取完成。
-    repo.clean("prices", quiescent=True)
+    assert prices.path("date=2026-10-14/data.bin").read_bytes() == b"day 14"
+    prices.rollback(quiescent=True, expected_revision=1)
+    assert prices.current().publication is None
+    prices.clean()
 ```
 
-## 文件路径
+正式数据目录位置可配置，每个数据集独占一个不重叠的目录。初始化要求空目录；不接管已有数据，不转换旧磁盘协议。
 
-已有数据可以原位接管，不复制、不移动、不建立硬链接：
+## 发布与读取
 
-```python
-with repo.prepare("prices") as draft:
-    draft.adopt("data", "/data/prices/existing.parquet")
-    draft.seal()
-    draft.commit()
-```
+`batch.stage(relative_path)` 返回暂存文件，调用方写入完整的新文件并检查。`batch.delete(relative_path)` 声明删除。提交前备份本次变更涉及的旧文件，然后逐文件安装，最后更新发布记录。
 
-新文件使用 `draft.allocate("data", path="/data/prices/new.parquet")` 指定完整路径。它独占创建并返回该路径，已有文件不会被覆盖。省略 path 时使用仓库默认布局。
+准备期间可以读取旧数据。**安装、回退和故障恢复期间，调用方必须暂停该数据集读取并等待已有读取真正完成，包括 LazyFrame.collect()。** `quiescent=True` 是调用方声明，不会暂停读者。文件替换不提供整表快照隔离。
 
-相对路径以仓库根为基准，绝对路径可以位于仓库外、不同文件系统。seal 记录归属后，文件必须保持不可变，并允许 clean 在不再被保留版本引用时删除它。未封存的自定义路径文件仍由调用方处理。
+读取使用自然路径和少量当前元数据。`current()` 不固定文件版本。Polars 直接扫描 `date=*/data.parquet` 等明确模式，避免递归扫描隐藏的控制目录。
 
-完整示例见 [managed_paths.py](examples/managed_paths.py)，边界见[文件路径与归属](docs/paths.md)。
+## 回退与清理
 
-## 工作方式
+一次回退恢复被替换或删除的旧文件，移除本次新增文件，并恢复原发布元数据。回退消耗回退机会；首次发布可以退回未发布状态。失败发布不会覆盖此前的有效回退材料。
 
-- **发布**：准备文件，封存完整成员清单，完成业务检查，显式提交。current 与 rollback 一起原子切换。
-- **读取**：一次 open 固定一个版本；后续发布不会自动改变这个 Binding。
-- **复用**：继承 current 的成员，只写变化的文件。复用限于同一数据集。
-- **回退**：将 rollback 提升为 current，清空 rollback；下次成功发布重新保留两个版本。
-- **清理**：在调用方协调的维护窗口内，删除两个保留版本之外的文件和清单。
+安装或回退报错后，在维护窗口调用 `recover(quiescent=True)` 判断并恢复状态。不要直接重试原提交。`clean()` 只删失效事务材料，不删除正式数据；有效撤销材料始终保留，存在活动事务时拒绝清理。
 
-已封存文件必须保持不可变。发布可以与读取并行，清理必须等待全部相关读取结束，包括延迟计算最后一次文件访问。`quiescent=True` 是调用方的声明，不会自动暂停读者。
+这是操作回退，不是完整数据备份。全量重算需要为旧文件备份预留相应空间。
 
-默认启用持久化同步。提交报错可能发生在原子切换之后，需要读取 head 核实结果。两个版本用于操作回退，不代替备份。
+## 文档与示例
 
-## 文档
-
-- [文档导航](docs/README.md)
-- [发布、增量更新与回退](docs/publishing.md)
-- [读取与 Parquet](docs/reading.md)
-- [维护清理](docs/cleanup.md)
-- [API 参考](docs/api.md)
-- [架构与边界](docs/design.md)、[磁盘协议](docs/protocol.md)
-- [开发指南](CONTRIBUTING.md)、[自动化](docs/automation.md)、[发行](docs/releasing.md)
-
-可运行示例：[双版本](examples/two_versions.py)、[Parquet](examples/parquet.py)。规模检查见 [benchmarks](benchmarks/README.md)。
+- [文档导航](docs/README.md)、[API](docs/api.md)、[磁盘协议](docs/protocol.md)
+- [发布与回退](docs/publishing.md)、[读取](docs/reading.md)、[清理](docs/cleanup.md)
+- [五天增量示例](examples/transactions.py)、[Hive 因子示例](examples/parquet.py)
+- [设计记录](docs/history/lightweight-refactor-plan.md)、[规模验证](benchmarks/README.md)
+- [开发](CONTRIBUTING.md)、[发行](docs/releasing.md)

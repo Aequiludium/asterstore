@@ -1,285 +1,300 @@
-"""Dataset-scoped current/rollback repository. Paths are independent of control metadata."""
+"""Directory registration and dataset-local change transactions."""
 
 from __future__ import annotations
 
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from . import _storage as fs
-from ._models import (
-    FORMAT_VERSION,
-    Binding,
-    CleanResult,
-    Head,
-    Manifest,
-    decode_head,
-    decode_manifest,
-    dump,
-    encode,
-    load,
-    relative,
-    revision,
-    unique_id,
-)
+from ._models import EMPTY, FORMAT, State, identity, relative
 from .errors import (
+    NoRollbackError,
     PublicationConflictError,
-    PublicationNotFoundError,
-    RepositoryNotInitializedError,
+    RecoveryRequiredError,
     StoreCorruptionError,
     UnsupportedFormatError,
 )
 
 if TYPE_CHECKING:
-    from .publishing import Draft
+    from .publishing import Batch
+
+
+def _window(quiescent: bool) -> None:
+    if quiescent is not True:
+        raise ValueError("pause new readers and finish existing reads; pass quiescent=True")
+
+
+def _format(path: Path, kind: str) -> dict[str, Any]:
+    record = fs.read(path)
+    if record.get("format") != FORMAT or record.get("kind") != kind:
+        raise UnsupportedFormatError(f"expected format {FORMAT} {kind}: {path}")
+    return record
 
 
 class Repository:
-    """Capture a root without creating it. Mutations require explicit initialization."""
+    """A registry of non-overlapping dataset directories; no global file inventory."""
 
-    def __init__(self, root: str | Path) -> None:
-        self.root = Path(root).expanduser().resolve()
+    def __init__(self, root: str | Path):
+        self.root = Path(os.path.abspath(root))
+        self.control = self.root / ".asterstore"
 
-    def _marker(self) -> dict[str, object]:
-        try:
-            value = load(fs.read(self.root, ".asterstore/format.json"))
-        except FileNotFoundError as exc:
-            raise RepositoryNotInitializedError(str(self.root)) from exc
-        if (
-            type(value.get("format_version")) is not int
-            or value["format_version"] != FORMAT_VERSION
-        ):
-            raise UnsupportedFormatError("requires format 3; no automatic migration is performed")
-        try:
-            if set(value) != {"format_version", "store_id"}:
-                raise ValueError("unexpected marker fields")
-            unique_id(value["store_id"])
-        except (ValueError, TypeError) as exc:
-            raise StoreCorruptionError(f"invalid marker: {exc}") from exc
-        return value
-
-    def initialize(self, *, durable: bool = True) -> None:
-        """Initialize or verify the marker, completing its requested durability."""
-        if type(durable) is not bool:
-            raise TypeError("durable must be bool")
-        self.root.mkdir(parents=True, exist_ok=True)
-        marker = fs.checked(self.root, ".asterstore/format.json", missing=True)
-        if marker.exists():
-            self._marker()
-            if durable:
-                fs.sync_paths(self.root, {marker})
-            return
-        # Never claim existing data, including an interrupted initialization.
+    def initialize(self) -> None:
+        fs.checked(self.root, missing=True)
+        fs.mkdir(self.root)
         if any(self.root.iterdir()):
-            raise StoreCorruptionError("initialization requires an empty root")
-        with fs.lock(self.root, ".asterstore/init.lock"):
-            if marker.exists():
-                self._marker()
-                if durable:
-                    fs.sync_paths(self.root, {marker})
-                return
-            fs.mkdir(self.root, ".asterstore/datasets")
-            fs.write(
-                self.root,
-                ".asterstore/format.json",
-                dump({"format_version": FORMAT_VERSION, "store_id": uuid4().hex}),
-                exclusive=True,
-                durable=durable,
-            )
-
-    def _directory(self, dataset_id: str) -> Path:
-        suffix = f".asterstore/datasets/{fs.dataset_key(dataset_id)}"
-        return fs.checked(self.root, suffix, missing=True)
-
-    def _head(self, dataset_id: str) -> Head | None:
-        directory = self._directory(dataset_id)
-        try:
-            head = decode_head(fs.read(self.root, f"{directory.relative_to(self.root)}/head.json"))
-        except FileNotFoundError:
-            return None
-        if head.dataset_id != dataset_id:
-            raise StoreCorruptionError("head dataset identity differs from its directory")
-        return head
-
-    def _manifest(self, dataset_id: str, version_id: str) -> Manifest:
-        unique_id(version_id)
-        path = self._directory(dataset_id) / "versions" / f"{version_id}.json"
-        try:
-            manifest = decode_manifest(fs.read(self.root, path.relative_to(self.root).as_posix()))
-        except FileNotFoundError as exc:
-            raise StoreCorruptionError("head references a missing manifest") from exc
-        if (manifest.dataset_id, manifest.version_id) != (dataset_id, version_id):
-            raise StoreCorruptionError("manifest identity mismatch")
-        for member in manifest.members:
-            self._member_path(dataset_id, member.path)
-        return manifest
-
-    def _encode_path(self, path: Path) -> str:
-        return (
-            path.relative_to(self.root).as_posix() if path.is_relative_to(self.root) else str(path)
+            raise FileExistsError("repository initialization requires an empty directory")
+        # Claim initialization exclusively: another initializer may have passed the
+        # empty-directory check too. Never overwrite a registry it already created.
+        self.control.mkdir()
+        fs.sync_directory(self.root)
+        fs.write(
+            self.control / "registry.json", {"format": FORMAT, "kind": "registry", "datasets": {}}
         )
 
-    def _member_path(self, dataset_id: str, value: str) -> Path:
-        relative(value[1:] if value.startswith("/") else value)
-        path = self.root / value
-        if self._encode_path(path) != value:
-            raise StoreCorruptionError("noncanonical member path")
-        control = self.root / ".asterstore"
-        reserved = (control / name for name in ("format.json", "init.lock", "ownership.lock"))
-        if any(path.is_relative_to(item) for item in reserved):
-            raise StoreCorruptionError("data path overlaps repository control")
-        if path == self.root or path == control:
-            raise StoreCorruptionError("data path is a control directory")
-        if path.is_relative_to(control / "datasets"):
-            objects = control / "datasets" / fs.dataset_key(dataset_id) / "objects"
-            if not path.is_relative_to(objects):
-                raise StoreCorruptionError("data path overlaps dataset control or another dataset")
-        elif path.parent == control:
-            raise StoreCorruptionError("data path overlaps repository control")
-        return path
-
-    def _input_path(self, dataset_id: str, path: str | Path) -> Path:
-        raw = Path(path).expanduser()
-        if ".." in raw.parts:
-            raise ValueError("data path must not contain parent traversal")
-        raw = self.root / raw
-        # Canonicalize directory aliases, but never follow a data-file symlink.
-        canonical = raw.parent.resolve() / raw.name
-        if canonical.is_relative_to(self.root / ".asterstore/datasets"):
-            raise StoreCorruptionError("custom data path overlaps default managed storage")
-        self._member_path(dataset_id, self._encode_path(canonical))
-        fs.check_file_path(canonical, missing=True)
-        return canonical
-
-    def _claims(self, *, sync_deletions: bool = False) -> dict[Path, str]:
-        """Read bounded-by-cleanup manifests under the ownership lock; no per-file registry."""
-        result: dict[Path, str] = {}
-        base = fs.checked(self.root, ".asterstore/datasets")
-        for directory in base.iterdir():
-            fs.checked(self.root, directory.relative_to(self.root).as_posix())
-            versions = directory / "versions"
-            if not versions.exists():
-                continue
-            files, folders = fs.inventory(self.root, versions)
-            if folders:
-                raise StoreCorruptionError("unexpected directory in versions")
-            if sync_deletions:
-                # A prior cleanup may have unlinked claims then failed its directory sync.
-                # Settle those removals before a new owner can persist the same path.
-                fs.sync_directory(versions)
-            for file in files:
-                if file.name.startswith(".tmp-"):
-                    continue
-                manifest = decode_manifest(
-                    fs.read(self.root, file.relative_to(self.root).as_posix())
-                )
-                if (
-                    directory != self._directory(manifest.dataset_id)
-                    or file.name != f"{manifest.version_id}.json"
-                ):
-                    raise StoreCorruptionError("manifest ownership identity mismatch")
-                for member in manifest.members:
-                    path = self._member_path(manifest.dataset_id, member.path)
-                    owner = result.setdefault(path, manifest.dataset_id)
-                    if owner != manifest.dataset_id:
-                        raise StoreCorruptionError("file claimed by multiple datasets")
+    def _registry(self) -> dict[str, str]:
+        record = _format(self.control / "registry.json", "registry")
+        datasets = record.get("datasets")
+        if not isinstance(datasets, dict):
+            raise StoreCorruptionError("invalid dataset registry")
+        result: dict[str, str] = {}
+        for name, path in datasets.items():
+            if not isinstance(name, str) or not name or not isinstance(path, str):
+                raise StoreCorruptionError("invalid directory binding")
+            if not Path(path).is_absolute() or os.path.abspath(path) != path:
+                raise StoreCorruptionError("noncanonical directory binding")
+            result[name] = path
         return result
 
-    def describe(self, dataset_id: str) -> Head:
-        self._marker()
-        head = self._head(dataset_id)
-        if head is None:
-            raise PublicationNotFoundError(dataset_id)
+    def create_dataset(self, name: str, path: str | Path) -> Dataset:
+        if not isinstance(name, str) or not name or "\x00" in name:
+            raise ValueError("dataset name must be a nonempty string")
+        self._registry()
+        root = Path(os.path.abspath(path))
+        fs.checked(root, missing=True)
+        with fs.lock(self.control / "registry.lock"):
+            registry = self._registry()
+            if name in registry:
+                raise FileExistsError(name)
+            for occupied in [self.control, *(Path(p) for p in registry.values())]:
+                if root.is_relative_to(occupied) or occupied.is_relative_to(root):
+                    raise ValueError(
+                        "dataset directories must not overlap or contain registry control"
+                    )
+            # Also reject roots nested inside datasets belonging to another registry.
+            for parent in root.parents:
+                if (parent / ".asterstore" / "dataset.json").exists():
+                    raise ValueError("nested dataset directory")
+            fs.mkdir(root)
+            if any(root.iterdir()):
+                raise FileExistsError("dataset initialization requires an empty directory")
+            control = root / ".asterstore"
+            fs.mkdir(control)
+            fs.mkdir(control / "work")
+            fs.write(control / "head.json", EMPTY.payload())
+            fs.write(control / "dataset.json", {"format": FORMAT, "kind": "dataset", "name": name})
+            registry[name] = str(root)
+            fs.write(
+                self.control / "registry.json",
+                {
+                    "format": FORMAT,
+                    "kind": "registry",
+                    "datasets": registry,
+                },
+            )
+        return Dataset(root, name)
+
+    def dataset(self, name: str) -> Dataset:
+        return Dataset(Path(self._registry()[name]), name)
+
+
+class Dataset:
+    """A mutable directory; readers must be excluded during installation/recovery."""
+
+    def __init__(self, root: Path, name: str):
+        self.root = root
+        self.control = root / ".asterstore"
+        self.name = name
+        record = _format(self.control / "dataset.json", "dataset")
+        if record.get("name") != name:
+            raise StoreCorruptionError("dataset identity mismatch")
+
+    def _head(self) -> State:
+        return State.parse(fs.read(self.control / "head.json"))
+
+    def current(self) -> State:
+        """Read small current metadata, not a pinned file snapshot."""
+        if fs.checked(self.control / "active.json", missing=True).exists():
+            raise RecoveryRequiredError("installation or recovery is in progress")
+        return self._head()
+
+    def path(self, relative_path: str) -> Path:
+        target = fs.checked(self.root / relative(relative_path), missing=True)
+        ancestor = target
+        while not ancestor.exists():
+            ancestor = ancestor.parent
+        if ancestor.stat().st_dev != self.root.stat().st_dev:
+            raise ValueError("data paths must be on the dataset control filesystem")
+        return target
+
+    def _revision(self, expected: int | None) -> State:
+        state = self.current()
+        if expected is not None and (type(expected) is not int or state.revision != expected):
+            raise PublicationConflictError(f"expected {expected}, found {state.revision}")
+        return state
+
+    @contextmanager
+    def write(self, *, expected_revision: int | None = None) -> Iterator[Batch]:
+        """Prepare one batch under the dataset writer lock. Explicit commit is required."""
+        from .publishing import Batch
+
+        with fs.lock(self.control / "writer.lock"):
+            state = self._revision(expected_revision)
+            batch = Batch(self, state)
+            try:
+                yield batch
+            finally:
+                batch._closed = True
+                # If commit started, only recover() may classify its outcome.
+                if not (self.control / "active.json").exists() and self._head().undo != batch.id:
+                    if batch.work.exists():
+                        fs.remove_tree(batch.work)
+
+    def _record(self, operation: str) -> dict[str, Any]:
+        directory = self.control / "work" / identity(operation)
+        record = fs.read(directory / "record.json")
+        if set(record) != {"id", "before", "entries"} or record["id"] != operation:
+            raise StoreCorruptionError("invalid change record")
+        State.parse(record["before"])
+        entries = record["entries"]
+        if not isinstance(entries, list):
+            raise StoreCorruptionError("invalid change entries")
+        paths = []
+        for entry in entries:
+            if not isinstance(entry, dict) or set(entry) != {"path", "existed"}:
+                raise StoreCorruptionError("invalid change entry")
+            try:
+                paths.append(relative(entry["path"]))
+            except (ValueError, TypeError) as exc:
+                raise StoreCorruptionError("unsafe change path") from exc
+            if type(entry["existed"]) is not bool:
+                raise StoreCorruptionError("invalid existence flag")
+        if len(set(paths)) != len(paths):
+            raise StoreCorruptionError("duplicate change paths")
+        return record
+
+    def _restore(self, operation: str, record: dict[str, Any]) -> None:
+        work = self.control / "work" / operation
+        # Validate all backups before touching any formal data.
+        for entry in record["entries"]:
+            self.path(entry["path"])
+            if entry["existed"]:
+                fs.file(work / "backup" / entry["path"])
+        for entry in record["entries"]:
+            target = self.path(entry["path"])
+            if entry["existed"]:
+                temporary = work / "restore"
+                fs.copy(work / "backup" / entry["path"], temporary)
+                fs.install(temporary, target)
+            else:
+                fs.unlink(target)
+
+    def recover(self, *, quiescent: bool) -> State:
+        _window(quiescent)
+        with fs.lock(self.control / "writer.lock"):
+            return self._recover()
+
+    def _sync_control(self) -> None:
+        # A prior unlink/replace can be visible but not durable after a failed fsync.
+        fs.sync_file(self.control / "head.json")
+        fs.sync_directory(self.control)
+
+    def _recover(self) -> State:
+        active_path = self.control / "active.json"
+        if not fs.checked(active_path, missing=True).exists():
+            head = self._head()
+            self._sync_control()
+            return head
+        active = fs.read(active_path)
+        if set(active) != {"kind", "id", "source", "before"}:
+            raise StoreCorruptionError("invalid active transaction")
+        operation, source = identity(active["id"]), identity(active["source"])
+        before = State.parse(active["before"])
+        record = self._record(source)
+        head = self._head()
+        kind = active["kind"]
+        if kind not in ("publish", "rollback"):
+            raise StoreCorruptionError("unknown transaction kind")
+        if kind == "publish" and (operation != source or record["before"] != before.payload()):
+            raise StoreCorruptionError("publication transaction mismatch")
+        if kind == "rollback" and before.undo != source:
+            raise StoreCorruptionError("rollback source mismatch")
+        if head.operation == operation:
+            if head.revision != before.revision + 1:
+                raise StoreCorruptionError("committed operation revision mismatch")
+            if kind == "publish" and (head.publication != source or head.undo != source):
+                raise StoreCorruptionError("committed publication mismatch")
+            if kind == "rollback":
+                previous = State.parse(record["before"])
+                expected = State(
+                    before.revision + 1, operation, previous.publication, previous.metadata, None
+                )
+                if head != expected:
+                    raise StoreCorruptionError("committed rollback mismatch")
+        if head.operation != operation:
+            if head != before:
+                raise StoreCorruptionError("transaction base no longer matches current state")
+            self._restore(source, record)
+            if kind == "rollback":
+                previous = State.parse(record["before"])
+                head = State(
+                    before.revision + 1, operation, previous.publication, previous.metadata, None
+                )
+                fs.write(self.control / "head.json", head.payload())
+        # Settle an earlier head replacement before releasing intent.
+        self._sync_control()
+        fs.unlink(active_path)
         return head
 
-    def open(
-        self, dataset_id: str, *, version: Literal["current", "rollback"] = "current"
-    ) -> Binding:
-        if version not in {"current", "rollback"}:
-            raise ValueError("version must be current or rollback")
-        head = self.describe(dataset_id)
-        selected = head.current if version == "current" else head.rollback
-        if selected is None:
-            raise PublicationNotFoundError(f"no rollback: {dataset_id}")
-        return Binding(
-            self.root,
-            self._manifest(dataset_id, selected),
-            head.revision,
-            head.revision,
-        )
+    def rollback(self, *, quiescent: bool, expected_revision: int | None = None) -> State:
+        _window(quiescent)
+        with fs.lock(self.control / "writer.lock"):
+            before = self._revision(expected_revision)
+            if before.undo is None:
+                raise NoRollbackError("no publication to undo")
+            self._record(before.undo)
+            fs.write(
+                self.control / "active.json",
+                {
+                    "kind": "rollback",
+                    "id": uuid4().hex,
+                    "source": before.undo,
+                    "before": before.payload(),
+                },
+            )
+            return self._recover()
 
-    def list_datasets(self) -> tuple[str, ...]:
-        self._marker()
-        base = fs.checked(self.root, ".asterstore/datasets")
-        result = []
-        for directory in sorted(base.iterdir()):
-            fs.checked(self.root, directory.relative_to(self.root).as_posix())
-            if not directory.is_dir():
-                raise StoreCorruptionError("unexpected file in datasets directory")
-            path = directory / "head.json"
-            try:
-                head = decode_head(fs.read(self.root, path.relative_to(self.root).as_posix()))
-            except FileNotFoundError:
-                continue
-            if fs.dataset_key(head.dataset_id) != directory.name:
-                raise StoreCorruptionError("dataset directory identity mismatch")
-            result.append(head.dataset_id)
-        return tuple(result)
-
-    def prepare(
-        self, dataset_id: str, *, expected_revision: int | None = None, durable: bool = True
-    ) -> Draft:
-        from .publishing import Draft
-
-        return Draft(self, dataset_id, expected_revision=expected_revision, durable=durable)
-
-    def _sync_retained(self, head: Head) -> None:
-        directory = self._directory(head.dataset_id)
-        paths = {self.root / ".asterstore/format.json"}
-        for version_id in (head.current, head.rollback):
-            if version_id is None:
-                continue
-            manifest = self._manifest(head.dataset_id, version_id)
-            paths.add(directory / "versions" / f"{version_id}.json")
-            files = {self._member_path(head.dataset_id, m.path) for m in manifest.members}
-            local = {p for p in files if p.is_relative_to(self.root)}
-            paths.update(local)
-            fs.sync_files(files - local)
-        fs.sync_paths(self.root, paths)
-
-    def _replace_head(self, head: Head, *, durable: bool) -> None:
-        if durable:
-            self._sync_retained(head)
-        path = self._directory(head.dataset_id) / "head.json"
-        fs.write(
-            self.root,
-            path.relative_to(self.root).as_posix(),
-            encode(head),
-            exclusive=False,
-            durable=durable,
-        )
-
-    def rollback(self, dataset_id: str, *, expected_revision: int, durable: bool = True) -> Head:
-        revision(expected_revision)
-        if type(durable) is not bool:
-            raise TypeError("durable must be bool")
-        self._marker()
-        directory = self._directory(dataset_id)
-        if not directory.exists():
-            raise PublicationNotFoundError(dataset_id)
-        with fs.lock(self.root, (directory / "writer.lock").relative_to(self.root).as_posix()):
-            head = self.describe(dataset_id)
-            if head.revision != expected_revision:
-                raise PublicationConflictError("head changed before rollback")
-            if head.rollback is None:
-                raise PublicationNotFoundError("no safe rollback version")
-            self._manifest(dataset_id, head.rollback)
-            result = Head(dataset_id, head.revision + 1, head.rollback)
-            self._replace_head(result, durable=durable)
-            return result
-
-    def clean(self, dataset_id: str, *, quiescent: bool, dry_run: bool = False) -> CleanResult:
-        """Caller must stop new readers and drain old bindings through their last I/O."""
-        from .cleanup import clean
-
-        return clean(self, dataset_id, quiescent=quiescent, dry_run=dry_run)
+    def clean(self, *, dry_run: bool = False) -> tuple[str, ...]:
+        """Remove only obsolete control work, never formal dataset files."""
+        with fs.lock(self.control / "writer.lock"):
+            head = self.current()  # Never delete or guess the outcome of an active transaction.
+            if head.undo is not None:
+                self._record(head.undo)
+            work = fs.checked(self.control / "work")
+            obsolete = []
+            for directory in sorted(work.iterdir()):
+                identity(directory.name)
+                fs.checked(directory)
+                if not directory.is_dir():
+                    raise StoreCorruptionError("invalid work directory")
+                if directory.name != head.undo:
+                    obsolete.append(directory.name)
+            if not dry_run:
+                # Persist the absence of active before its recovery materials can disappear.
+                self._sync_control()
+                for operation in obsolete:
+                    fs.remove_tree(work / operation)
+            return tuple(obsolete)
