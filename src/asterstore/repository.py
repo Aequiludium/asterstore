@@ -39,7 +39,7 @@ class Repository:
     """A registry of non-overlapping dataset directories; no global file inventory."""
 
     def __init__(self, root: str | Path):
-        self.root = Path(os.path.abspath(root))
+        self.root = Path(root).resolve()
         self.control = self.root / ".asterstore"
 
     def initialize(self) -> None:
@@ -73,7 +73,7 @@ class Repository:
         if not isinstance(name, str) or not name or "\x00" in name:
             raise ValueError("dataset name must be a nonempty string")
         self._registry()
-        root = Path(os.path.abspath(path))
+        root = Path(path).resolve()
         fs.checked(root, missing=True)
         with fs.lock(self.control / "registry.lock"):
             registry = self._registry()
@@ -108,15 +108,18 @@ class Repository:
         return Dataset(root, name)
 
     def dataset(self, name: str) -> Dataset:
-        return Dataset(Path(self._registry()[name]), name)
+        # Registered roots are already resolved. Do not follow a later redirect
+        # of their physical directory to a different dataset.
+        root = fs.checked(Path(self._registry()[name]))
+        return Dataset(root, name)
 
 
 class Dataset:
     """A mutable directory; readers must be excluded during installation/recovery."""
 
     def __init__(self, root: Path, name: str):
-        self.root = root
-        self.control = root / ".asterstore"
+        self.root = Path(root).resolve()
+        self.control = self.root / ".asterstore"
         self.name = name
         record = _format(self.control / "dataset.json", "dataset")
         if record.get("name") != name:
