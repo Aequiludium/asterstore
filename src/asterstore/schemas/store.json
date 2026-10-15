@@ -1,21 +1,175 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "AsterStore format 3 records",
+  "title": "AsterStore directory transactions, format 4",
   "$defs": {
-    "id": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
-    "text": {"type": "string", "minLength": 1},
-    "member": {
-      "type": "object", "additionalProperties": false,
-      "required": ["key", "path"],
-      "properties": {"key": {"$ref": "#/$defs/text"}, "path": {"type": "string", "minLength": 1}}
+    "state": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operation": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "publication": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "undo": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "revision",
+        "operation",
+        "publication",
+        "metadata",
+        "undo"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [
-    {"type": "object", "additionalProperties": false, "required": ["format_version", "store_id"],
-     "properties": {"format_version": {"const": 3}, "store_id": {"$ref": "#/$defs/id"}}},
-    {"type": "object", "additionalProperties": false, "required": ["dataset_id", "revision", "current", "rollback"],
-     "properties": {"dataset_id": {"$ref": "#/$defs/text"}, "revision": {"type": "integer", "minimum": 1, "maximum": 9223372036854775807}, "current": {"$ref": "#/$defs/id"}, "rollback": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}}},
-    {"type": "object", "additionalProperties": false, "required": ["dataset_id", "version_id", "members"],
-     "properties": {"dataset_id": {"$ref": "#/$defs/text"}, "version_id": {"$ref": "#/$defs/id"}, "members": {"type": "array", "items": {"$ref": "#/$defs/member"}}}}
+    {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": 4
+        },
+        "kind": {
+          "const": "registry"
+        },
+        "datasets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "format",
+        "kind",
+        "datasets"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": 4
+        },
+        "kind": {
+          "const": "dataset"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "format",
+        "kind",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "$ref": "#/$defs/state"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "before": {
+          "$ref": "#/$defs/state"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "existed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "path",
+              "existed"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "id",
+        "before",
+        "entries"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "publish",
+            "rollback"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "source": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "before": {
+          "$ref": "#/$defs/state"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "source",
+        "before"
+      ],
+      "additionalProperties": false
+    }
   ]
 }

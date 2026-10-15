@@ -2,7 +2,7 @@
 
 欢迎通过 [Issues](https://github.com/Aequiludium/asterstore/issues) 报告问题、讨论设计，通过 Pull Request 提交修改。漏洞请使用 [安全报告流程](SECURITY.md)。
 
-asterstore 采用数据集双版本协议。变更须说明原子可见性、回退和清理边界，并更新协议与测试。见 [API](docs/api.md) 与 [协议](docs/protocol.md)。
+asterstore 采用数据集目录变更协议。变更须说明维护窗口、故障恢复、一次回退和清理边界，并更新协议与测试。见 [API](docs/api.md) 与 [协议](docs/protocol.md)。
 
 ## 开发环境
 
@@ -30,7 +30,7 @@ uv run --locked --extra polars python tools/check_distribution.py --polars
 ## 修改原则
 
 - 核心保持业务无关和零第三方运行依赖；可选引擎放在 integrations。
-- 普通 Binding 选择保持无治理 I/O；不要为每次读取增加扫描、保留写入、存在性或内容检查。
+- 读取当前状态只读取小型控制记录；发布、回退不得遍历未变化的历史分区。
 - 子包通过明确接口协作；私有实现不是公共兼容承诺。
 - 发布、引用、删除的行为变化要说明生效点、锁顺序、异常后可见状态、原操作重试与恢复范围。
 - 修改持久格式时同步检查 Schema、codec、协议回归测试和使用文档；不能只改格式标记绕过版本限制。

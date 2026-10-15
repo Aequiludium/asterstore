@@ -30,21 +30,19 @@ licenses = [p for p in distribution.files or [] if str(p).endswith('.dist-info/l
 assert len(licenses) == 1
 assert hashlib.sha256(distribution.locate_file(licenses[0]).read_bytes()).hexdigest() == sys.argv[2]
 assert importlib.util.find_spec('jsonschema') is None
-assert not hasattr(asterstore.Repository, 'governance')
 repo = asterstore.Repository(pathlib.Path.cwd() / 'store')
 repo.initialize()
+ds = repo.create_dataset('data', pathlib.Path.cwd() / 'data')
 for index in range(3):
-    with repo.prepare('data') as draft:
-        draft.allocate('value').write_bytes(str(index).encode())
-        draft.seal()
-        draft.commit()
-assert repo.open('data').files()[0].read_bytes() == b'2'
-assert repo.open('data', version='rollback').files()[0].read_bytes() == b'1'
-assert repo.clean('data', quiescent=True).deleted_files == 2
-repo.rollback('data', expected_revision=3)
-assert repo.open('data').files()[0].read_bytes() == b'1'
-assert repo.describe('data').rollback is None
-print('Isolated format-3 installation OK:', installed)
+    with ds.write() as batch:
+        batch.stage('value').write_bytes(str(index).encode())
+        batch.commit(metadata={'index': index}, quiescent=True)
+assert ds.path('value').read_bytes() == b'2'
+assert len(ds.clean()) == 2
+ds.rollback(quiescent=True, expected_revision=3)
+assert ds.path('value').read_bytes() == b'1'
+assert ds.current().undo is None
+print('Isolated format-4 installation OK:', installed)
 """
 
 
@@ -127,14 +125,12 @@ def main() -> None:
                 "tools/check_protocol.py",
                 "tools/check_distribution.py",
                 "examples/parquet.py",
-                "examples/two_versions.py",
-                "examples/managed_paths.py",
-                "tests/test_managed_paths.py",
-                "tests/test_two_version.py",
+                "examples/transactions.py",
+                "tests/test_transactions.py",
                 "tests/test_polars.py",
                 "src/asterstore/py.typed",
                 "src/asterstore/schemas/store.json",
-                "benchmarks/retention_scale.py",
+                "benchmarks/partition_scale.py",
             }
             license_names = [
                 name for name in archive.getnames() if name.partition("/")[2] == "LICENSE"
@@ -179,7 +175,7 @@ def main() -> None:
                 str(python),
                 "-I",
                 "-c",
-                (root / "examples/managed_paths.py").read_text(),
+                (root / "examples/transactions.py").read_text(),
                 cwd=smoke_directory,
             )
             if args.polars:

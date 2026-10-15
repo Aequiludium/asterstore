@@ -1,75 +1,50 @@
-# API 参考
+# API
 
-公共类型从 `asterstore` 导入。数据集 ID 和成员 key 为非空可打印字符串，UTF-8 长度不超过 4096 字节。文件相对路径还须满足[协议](protocol.md)中的路径约束。
+核心导出 `Repository`、`Dataset`、`Batch`、`State` 和错误类型。不提供旧 API 或旧协议适配。
 
 ## Repository
 
-`Repository(root)` 接受字符串或 Path，只解析根路径，不创建仓库。
+- `Repository(root)`：指定仓库登记目录，不产生写入。
+- `initialize()`：在空目录建立 format 4 登记文件；非空目录拒绝初始化。
+- `create_dataset(name, path) -> Dataset`：在指定空目录初始化数据集，登记独占路径。路径不能与其他数据集或仓库控制目录重叠。
+- `dataset(name) -> Dataset`：从登记信息打开数据集，不扫描数据文件。
 
-| 调用 | 返回与行为 |
-| --- | --- |
-| `initialize(durable=True)` | 首次在空目录初始化；已有仓库检查标记，启用 durable 时补齐标记和父目录同步 |
-| `list_datasets()` | 返回具有 head 的数据集 ID 元组 |
-| `describe(dataset_id)` | 返回 Head |
-| `open(dataset_id, version="current")` | 返回 current 或 rollback 的固定 Binding |
-| `prepare(dataset_id, expected_revision=None, durable=True)` | 创建单次 Draft，进入上下文时取得修改锁 |
-| `rollback(dataset_id, expected_revision=..., durable=True)` | 条件回退，返回 revision 增加且 rollback 为空的 Head |
-| `clean(dataset_id, quiescent=..., dry_run=False)` | 在调用方保证的维护窗口内执行或预览清理，返回 CleanResult |
+登记锁只用于创建数据集，不参与日常发布、回退和清理。不同仓库不能并发在同一目录树初始化；部署应统一登记目录。
 
-head revision 从 1 开始。首次发布可要求 expected_revision=0；已有状态参与计算时，传入读取时的 revision。prepare 省略 revision 时使用取得锁后的状态。
+## Dataset
 
-open 只选择两个槽位，不接受任意版本 ID。读取 rollback 时返回的 revision 也是本次观察到的 head revision。
+- `root: Path`：正式数据集目录；隐藏控制目录为 `root/.asterstore`。
+- `current() -> State`：读取当前元数据，发现活动事务时抛出 `RecoveryRequiredError`。不是快照或读锁。
+- `path(relative_path) -> Path`：校验并返回一个数据路径，允许尚未存在的路径。不能把它用于绕过事务直接写入。
+- `write(expected_revision=None)`：上下文管理器，持有数据集写锁，返回 `Batch`。未提交退出丢弃暂存；安装开始后异常保留恢复材料。
+- `rollback(*, quiescent, expected_revision=None) -> State`：恢复最近一次成功发布之前的数据和业务元数据，操作序号递增，回退槽清空。
+- `recover(*, quiescent) -> State`：在维护窗口完成待处理事务；没有活动事务时返回当前状态。可重复调用。
+- `clean(*, dry_run=False) -> tuple[str, ...]`：返回失效工作目录的操作 ID；非预览模式删除这些目录。保留当前有效撤销材料；活动事务存在时拒绝。
 
-## Draft
+`quiescent` 必须显式为 `True`，表示调用方已停止新读取、等待全部在途读取结束。此声明不提供自动读者管理。
 
-Draft 必须通过上下文管理器使用。进入后可编辑，seal 后可检查候选并 commit。退出上下文后不可再用，也不自动提交。
+`expected_revision` 校验请求基于的状态，过期时抛出 `PublicationConflictError`。不传则使用取得写锁时的当前状态。
 
-| 成员 | 含义 |
-| --- | --- |
-| `version_id` | 库生成的版本 ID，提交前已确定 |
-| `base_revision` | 进入上下文后确认的基线 revision，首次发布为 0 |
-| `reuse_current()` | 在空草稿上调用一次，继承 current 的全部成员 |
-| `allocate(key, relative_path="data.bin", path=None)` | 返回新文件写入路径；path 指定准确位置，否则使用默认 staging；同名 key 替换，新 key 追加 |
-| `adopt(key, path)` | 加入原路径已有普通文件；seal 记录接管归属，不移动数据 |
-| `remove(key)` | 从草稿成员集中移除 key，不删除已发布文件 |
-| `alias(new_key, existing_key)` | 添加一个引用已有成员文件的不同 key |
-| `seal()` | 固定完整成员清单，返回候选 Binding，不发布 |
-| `commit()` | 要求已封存；原子切换 head，返回 Head |
+## Batch
 
-allocate 不写入业务内容；指定 path 时独占创建空文件。自定义路径与接管权限见[路径与归属](paths.md)。seal 前必须写完并关闭文件，新文件必须只有一个硬链接。未被最终成员引用的临时文件不会安装。封存文件之后不得修改。
+- `stage(relative_path) -> Path`：独占创建一个空暂存文件，返回供调用方写入的路径。每个文件必须是完整替换结果。
+- `delete(relative_path)`：声明删除一个已存在的普通文件。
+- `commit(*, metadata, quiescent) -> State`：提交变更和 JSON 对象元数据。纯元数据发布支持回退；无文件变更且元数据相同则为 no-op。
 
-sealed 状态下重复 seal 返回同一 Binding；同一存活 Draft 成功 commit 后重复调用返回已知 Head。seal 或 commit 抛出异常后 Draft 失效。提交异常可能发生在 head 切换之后，处理方式见[发布与回退](publishing.md)。
+重复路径、父子冲突路径、越界和控制路径拒绝。一个 Batch 只提交一次，提交失败也不能重用。相同文件内容不会自动比较或去重；只要 stage 了文件就构成变更。
 
-## 结果类型
+调用方在提交前完成检查。Batch 退出后返回的暂存路径不再可用。
 
-**Head**：dataset_id、revision、current、rollback。rollback 为版本 ID 或 None。
+## State
 
-**Manifest**：dataset_id、version_id、members。members 是有序 Member 元组，每个 Member 包含 key 和仓库相对路径或绝对路径 path。
+- `revision`：每次成功发布或主动回退递增，初始为 0。
+- `operation`：最近已提交操作的 ID；回退也产生新 ID。
+- `publication`：当前数据对应的发布 ID，未发布时为 `None`。
+- `metadata`：调用方 JSON 元数据。返回对象的修改不影响磁盘状态。
+- `undo`：当前有效撤销材料 ID，无回退机会时为 `None`。
 
-**Binding**：root、dataset_id、version_id、manifest、revision、base_revision，以及 `files(keys=None)`。
+## 错误
 
-- files 返回 Path 元组，默认按清单顺序，显式 keys 按请求顺序；字符串本身不能代替 key 序列。
-- files 不访问磁盘、不刷新版本、不登记文件保护。
-- 候选 Binding 的 revision 为 None，base_revision 为 Draft 基线。
-- 正式 Binding 的 revision 和 base_revision 都是 open 时观察到的 head revision，不代表该版本最初发布的 revision。
+`AsterStoreError` 为存储语义错误基类。具体类型有 `StoreCorruptionError`、`UnsupportedFormatError`、`PublicationConflictError`、`RecoveryRequiredError`、`NoRollbackError`。非法调用还可能抛出 `ValueError`、`RuntimeError`；文件缺失、权限、空间和同步故障保留标准 `OSError` 子类。
 
-**CleanResult**：dataset_id、dry_run、scanned_files、candidate_files、candidate_bytes、deleted_files、deleted_bytes、skipped。统计包含对象、清单和 staging 文件；没有 head 时跳过。实际清理失败会抛出异常，而不是返回完整成功。
-
-## 异常
-
-| 类型 | 含义 |
-| --- | --- |
-| AsterStoreError | 库异常基类 |
-| RepositoryNotInitializedError | 缺少仓库标记 |
-| UnsupportedFormatError | 格式标记不受当前客户端支持 |
-| StoreCorruptionError | 持久记录或目录状态不符合约束 |
-| PublicationNotFoundError | 数据集或请求的版本槽位不存在 |
-| PublicationConflictError | revision 与预期不一致 |
-| CandidateStateError | Draft 已关闭、失败或处于错误阶段 |
-| UnknownMemberError | 成员 key 不存在 |
-
-非法参数也可抛出 ValueError 或 TypeError。底层 I/O 异常保留 OSError 等原始类型；调用方不能把所有异常统一解释为未发布。
-
-## 可选 Polars 适配器
-
-`asterstore.integrations.polars.scan_parquet(binding, keys=None, hive_partitioning=False)` 返回 LazyFrame。它使用固定文件列表，空选择抛出 ValueError，详细寿命约定见[读取](reading.md)。
+不能把提交抛出异常简单理解为未提交。维护窗口内调用 recover，依据持久化状态确定最终结果。

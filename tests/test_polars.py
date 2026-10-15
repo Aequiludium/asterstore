@@ -1,19 +1,39 @@
-import pytest
+"""Natural Hive scanning excludes staging and rollback material."""
+
+from datetime import date
+from pathlib import Path
+
+import polars as pl
 
 from asterstore import Repository
-from asterstore.integrations.polars import scan_parquet
 
 
-def test_exact_files_and_hive(tmp_path):
-    pl = pytest.importorskip("polars")
-    repo = Repository(tmp_path)
+def test_hive_revision_and_rollback(tmp_path: Path) -> None:
+    repo = Repository(tmp_path / "registry")
     repo.initialize()
-    with repo.prepare("prices") as draft:
-        path = draft.allocate("day", relative_path="date=2026-10-14/data.parquet")
-        pl.DataFrame({"value": [1, 2]}).write_parquet(path)
-        draft.allocate("metadata").write_text("{}")
-        draft.seal()
-        draft.commit()
-    result = scan_parquet(repo.open("prices"), keys=["day"], hive_partitioning=True).collect()
-    assert result["value"].to_list() == [1, 2]
-    assert "date" in result.columns
+    ds = repo.create_dataset("market", tmp_path / "market")
+    with ds.write() as batch:
+        for day in (1, 2):
+            pl.DataFrame({"price": [day]}).write_parquet(
+                batch.stage(f"date=2026-10-0{day}/data.parquet")
+            )
+        batch.commit(metadata={"through": "2026-10-02"}, quiescent=True)
+    with ds.write() as batch:
+        pl.DataFrame({"price": [99]}).write_parquet(batch.stage("date=2026-10-01/data.parquet"))
+        batch.commit(metadata={"through": "2026-10-02"}, quiescent=True)
+    ds.current()
+    result = (
+        pl.scan_parquet(ds.root / "date=*/data.parquet", hive_partitioning=True)
+        .sort("date")
+        .collect()
+    )
+    assert result["price"].to_list() == [99, 2]
+    assert result["date"].to_list() == [date(2026, 10, 1), date(2026, 10, 2)]
+    ds.clean()
+    ds.rollback(quiescent=True)
+    result = (
+        pl.scan_parquet(ds.root / "date=*/data.parquet", hive_partitioning=True)
+        .sort("date")
+        .collect()
+    )
+    assert result["price"].to_list() == [1, 2]

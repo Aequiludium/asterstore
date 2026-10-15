@@ -1,58 +1,41 @@
-"""Cooperative POSIX file primitives. No lifecycle records or global inventory."""
+"""Durable POSIX primitives, scoped to explicitly addressed paths."""
 
 from __future__ import annotations
 
 import fcntl
+import json
 import os
+import shutil
 import stat
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
-from hashlib import sha256
 from pathlib import Path
+from typing import Any
 
-from ._models import identifier, relative
 from .errors import StoreCorruptionError
 
 
-def dataset_key(dataset_id: str) -> str:
-    return sha256(identifier(dataset_id).encode()).hexdigest()
-
-
-def checked(base: Path, suffix: str = "", *, missing: bool = False) -> Path:
-    """Reject symlinks/special files anywhere below the captured store root."""
-    parts = relative(suffix).split("/") if suffix else []
-    path = base
-    for i, part in enumerate([None, *parts]):
-        if part is not None:
-            path = path / part
+def checked(path: Path, *, missing: bool = False) -> Path:
+    path = path.absolute()
+    current = Path(path.anchor)
+    for part in path.parts[1:]:
+        current /= part
         try:
-            mode = path.lstat().st_mode
+            mode = current.lstat().st_mode
         except FileNotFoundError:
             if missing:
                 continue
             raise
-        if stat.S_ISLNK(mode) or not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
-            raise StoreCorruptionError(f"unsafe file type: {path}")
-        if i < len(parts) and not stat.S_ISDIR(mode):
-            raise StoreCorruptionError(f"not a directory: {path}")
+        if not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
+            raise StoreCorruptionError(f"unsafe file: {current}")
+        if current != path and not stat.S_ISDIR(mode):
+            raise StoreCorruptionError(f"not a directory: {current}")
     return path
 
 
-def read(base: Path, suffix: str) -> bytes:
-    path = checked(base, suffix)
-    if not path.is_file():
-        raise StoreCorruptionError(f"not a regular file: {path}")
-    return path.read_bytes()
-
-
-def mkdir(base: Path, suffix: str) -> Path:
-    path = checked(base, suffix, missing=True)
-    path.mkdir(parents=True, exist_ok=True)
-    return checked(base, suffix)
-
-
 def sync_directory(path: Path) -> None:
+    checked(path)
     fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
         os.fsync(fd)
@@ -60,80 +43,107 @@ def sync_directory(path: Path) -> None:
         os.close(fd)
 
 
-def sync_paths(base: Path, paths: set[Path]) -> None:
-    directories = {base, base.parent}
-    for path in paths:
-        checked(base, path.relative_to(base).as_posix())
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-        try:
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-        parent = path.parent
-        while parent != base.parent:
-            directories.add(parent)
-            parent = parent.parent
-    for path in sorted(directories, key=lambda p: len(p.parts), reverse=True):
-        sync_directory(path)
+def mkdir(path: Path) -> None:
+    checked(path, missing=True)
+    if path.exists():
+        if not path.is_dir():
+            raise StoreCorruptionError(f"not a directory: {path}")
+        return
+    mkdir(path.parent)
+    path.mkdir()
+    sync_directory(path.parent)
 
 
-def write(base: Path, suffix: str, data: bytes, *, exclusive: bool, durable: bool) -> None:
-    path = checked(base, suffix, missing=True)
-    mkdir(base, path.parent.relative_to(base).as_posix())
+def sync_file(path: Path) -> None:
+    file(path)
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def file(path: Path) -> Path:
+    checked(path)
+    if not path.is_file() or path.stat().st_nlink != 1:
+        raise StoreCorruptionError(f"expected an unaliased regular file: {path}")
+    return path
+
+
+def read(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(file(path).read_bytes())
+        if not isinstance(value, dict):
+            raise ValueError("expected object")
+        return value
+    except (ValueError, TypeError) as exc:
+        raise StoreCorruptionError(f"invalid JSON: {path}") from exc
+
+
+def write(path: Path, value: dict[str, Any]) -> None:
+    data = (
+        json.dumps(value, allow_nan=False, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode()
+    checked(path, missing=True)
+    mkdir(path.parent)
     fd, name = tempfile.mkstemp(prefix=".tmp-", dir=path.parent)
     temporary = Path(name)
     try:
         with os.fdopen(fd, "wb") as stream:
             stream.write(data)
             stream.flush()
-            if durable:
-                os.fsync(stream.fileno())
-        if exclusive:
-            os.link(temporary, path)  # Never accept a reused version identity.
-        else:
-            os.replace(temporary, path)
-        if durable:
-            sync_paths(base, {path})
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        sync_directory(path.parent)
     finally:
         temporary.unlink(missing_ok=True)
 
 
+def copy(source: Path, target: Path) -> None:
+    file(source)
+    checked(target, missing=True)
+    mkdir(target.parent)
+    shutil.copyfile(source, target)
+    sync_file(target)
+    sync_directory(target.parent)
+
+
+def install(source: Path, target: Path) -> None:
+    file(source)
+    checked(target, missing=True)
+    mkdir(target.parent)
+    os.replace(source, target)
+    sync_directory(target.parent)
+    if source.parent != target.parent:
+        sync_directory(source.parent)
+
+
+def unlink(path: Path) -> None:
+    checked(path, missing=True)
+    if path.exists():
+        file(path)
+        path.unlink()
+    # Sync even on retry after an interrupted unlink.
+    if path.parent.exists():
+        sync_directory(path.parent)
+
+
+def remove_tree(path: Path) -> None:
+    checked(path)
+    # Preflight owned temporary material; never traverse the data directory.
+    for parent, dirs, files in os.walk(path, followlinks=False):
+        for name in (*dirs, *files):
+            checked(Path(parent) / name)
+    shutil.rmtree(path)
+    sync_directory(path.parent)
+
+
 @contextmanager
-def lock(base: Path, suffix: str) -> Iterator[None]:
-    path = checked(base, suffix, missing=True)
-    mkdir(base, path.parent.relative_to(base).as_posix())
+def lock(path: Path) -> Iterator[None]:
+    checked(path, missing=True)
     fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX)
         yield
     finally:
         os.close(fd)
-
-
-def inventory(base: Path, directory: Path) -> tuple[list[Path], list[Path]]:
-    """Preflight a complete owned subtree before deleting anything."""
-
-    def scan_error(error: OSError) -> None:
-        raise error
-
-    checked(base, directory.relative_to(base).as_posix())
-    files, directories = [], []
-    for parent, children, names in os.walk(directory, followlinks=False, onerror=scan_error):
-        for name in [*children, *names]:
-            path = checked(base, (Path(parent) / name).relative_to(base).as_posix())
-            if path.is_dir():
-                directories.append(path)
-            else:
-                files.append(path)
-    return files, directories
-
-
-def check_file_path(path: Path, *, missing: bool = False) -> Path:
-    """Validate a canonical absolute data path without assuming a store location."""
-    return checked(Path(path.anchor), path.relative_to(path.anchor).as_posix(), missing=missing)
-
-
-def sync_files(paths: set[Path]) -> None:
-    """Sync arbitrary data files and their directory chains."""
-    for path in paths:
-        sync_paths(Path(path.anchor), {path})

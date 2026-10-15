@@ -1,33 +1,26 @@
-"""Dataset-scoped immutable files with current/rollback publication."""
+"""Lightweight dataset directory publication and one-step undo."""
 
-from ._models import Binding, CleanResult, Head, Manifest, Member
+from ._models import State
 from .errors import (
     AsterStoreError,
-    CandidateStateError,
+    NoRollbackError,
     PublicationConflictError,
-    PublicationNotFoundError,
-    RepositoryNotInitializedError,
+    RecoveryRequiredError,
     StoreCorruptionError,
-    UnknownMemberError,
     UnsupportedFormatError,
 )
-from .publishing import Draft
-from .repository import Repository
+from .publishing import Batch
+from .repository import Dataset, Repository
 
 __all__ = [
     "AsterStoreError",
-    "Binding",
-    "CandidateStateError",
-    "CleanResult",
-    "Draft",
-    "Head",
-    "Manifest",
-    "Member",
+    "Batch",
+    "Dataset",
+    "NoRollbackError",
     "PublicationConflictError",
-    "PublicationNotFoundError",
+    "RecoveryRequiredError",
     "Repository",
-    "RepositoryNotInitializedError",
+    "State",
     "StoreCorruptionError",
-    "UnknownMemberError",
     "UnsupportedFormatError",
 ]
