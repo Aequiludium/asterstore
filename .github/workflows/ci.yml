@@ -28,7 +28,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
-          version: "0.10.7"
+          version: "0.13.6"
           python-version: "3.12"
           enable-cache: true
       - run: uv sync --locked --extra polars
@@ -54,7 +54,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
-          version: "0.10.7"
+          version: "0.13.6"
           python-version: ${{ matrix.python }}
           enable-cache: true
       - run: uv sync --locked --extra polars
@@ -80,7 +80,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
-          version: "0.10.7"
+          version: "0.13.6"
           python-version: ${{ matrix.python }}
           enable-cache: true
       - run: uv sync --locked --extra polars
@@ -118,7 +118,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
-          version: "0.10.7"
+          version: "0.13.6"
           python-version: ${{ matrix.python }}
           enable-cache: true
       - run: uv sync --locked --extra polars
