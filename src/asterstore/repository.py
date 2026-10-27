@@ -107,6 +107,10 @@ class Repository:
             )
         return Dataset(root, name)
 
+    def list_datasets(self) -> tuple[str, ...]:
+        """Return registered dataset names in lexical order."""
+        return tuple(sorted(self._registry()))
+
     def dataset(self, name: str) -> Dataset:
         # Registered roots are already resolved. Do not follow a later redirect
         # of their physical directory to a different dataset.
