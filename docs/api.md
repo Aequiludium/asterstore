@@ -8,6 +8,18 @@
 - `initialize()`：在空目录建立 format 4 登记文件；非空目录拒绝初始化。
 - `create_dataset(name, path) -> Dataset`：在指定空目录初始化数据集，登记独占路径。入口及父目录软链接先解析为真实路径；真实路径不能与其他数据集或仓库控制目录重叠。
 - `dataset(name) -> Dataset`：从登记信息打开数据集，不扫描数据文件。
+- `list_datasets() -> tuple[str, ...]`：按字典序返回已登记的数据集名称；空仓库返回空元组，不扫描数据集目录。
+
+`list_datasets()` 原样返回注册名称，包括冒号、斜杠和中文。例如：
+
+```python
+repo.list_datasets()
+# (
+#     "factor:barra/size/Size",
+#     "factor:basic/capital/Capital",
+#     "其他数据集",
+# )
+```
 
 登记锁只用于创建数据集，不参与日常发布、回退和清理。不同仓库不能并发在同一目录树初始化；部署应统一登记目录。
 
