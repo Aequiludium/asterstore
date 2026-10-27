@@ -150,6 +150,22 @@ def test_duplicates_aliases_and_nonfiles(dataset: Dataset, tmp_path: Path) -> No
             batch.delete("missing")
 
 
+def test_list_datasets(tmp_path: Path) -> None:
+    repo = Repository(tmp_path / "registry")
+    repo.initialize()
+    assert repo.list_datasets() == ()
+    for index, name in enumerate(
+        ("其他数据集", "factor:barra/size/Size", "factor:basic/capital/Capital")
+    ):
+        repo.create_dataset(name, tmp_path / f"data-{index}")
+    (tmp_path / "unregistered").mkdir()
+    assert Repository(repo.root).list_datasets() == (
+        "factor:barra/size/Size",
+        "factor:basic/capital/Capital",
+        "其他数据集",
+    )
+
+
 def test_registry_rejects_overlap_nonempty_and_old_format(tmp_path: Path) -> None:
     repo = Repository(tmp_path / "repo")
     repo.initialize()
