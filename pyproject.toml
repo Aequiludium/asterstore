@@ -26,7 +26,7 @@ build-backend = "uv_build"
 dev = ["pytest>=8,<10", "ruff>=0.11,<1", "mypy>=1.15,<3", "jsonschema>=4.18,<5"]
 
 [tool.uv]
-required-version = ">=0.10.7"
+required-version = ">=0.13.6"
 
 [tool.uv.build-backend]
 source-include = ["docs/**", "tests/**", "examples/**", "benchmarks/**", "tools/**", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md"]
