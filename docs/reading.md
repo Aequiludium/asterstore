@@ -4,6 +4,8 @@
 
 Polars 可以直接使用：
 
+可选依赖支持 `polars>=1.44.2,<3`，Python 3.11/3.12 的 CI 覆盖 Polars 1.44.2、2.0.0 和 2.1.0。
+
 ```python
 state = dataset.current()
 frame = pl.scan_parquet(dataset.root / "date=*/data.parquet", hive_partitioning=True)
