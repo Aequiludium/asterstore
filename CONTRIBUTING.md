@@ -8,6 +8,8 @@ asterstore 采用数据集目录变更协议。变更须说明维护窗口、故
 
 Python 3.11–3.14，本地 Linux/POSIX 环境，uv 0.13.6 或更高版本：
 
+CI 验证四个 Python 版本与 Polars 1.44.2、2.0.0、2.1.0 的全部组合。下面的锁定开发环境使用 Polars 2.1.0；最低运行要求仍为 Python 3.11。
+
 ```bash
 git clone https://github.com/Aequiludium/asterstore.git
 cd asterstore
@@ -29,7 +31,7 @@ uv run --locked --extra polars python tools/check_distribution.py --polars
 
 ## 修改原则
 
-- 核心保持业务无关和零第三方运行依赖；可选引擎放在 integrations。
+- 核心保持业务无关和零第三方运行依赖；Polars 读写由调用方完成，核心不引入引擎适配层。
 - 读取当前状态只读取小型控制记录；发布、回退不得遍历未变化的历史分区。
 - 子包通过明确接口协作；私有实现不是公共兼容承诺。
 - 发布、引用、删除的行为变化要说明生效点、锁顺序、异常后可见状态、原操作重试与恢复范围。

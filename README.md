@@ -4,15 +4,35 @@ AsterStore 管理普通数据目录的一批文件变更，保存当前发布元
 
 每次只处理新增、替换或删除的文件；不构建历史分区的完整文件清单，不维护全局文件归属或版本引用图。核心没有第三方运行依赖。
 
-## 使用
+## 安装与兼容性
 
-Python 3.11+，支持 POSIX 文件锁、文件与目录同步、原子替换的文件系统。源码安装：
+要求 Python 3.11 或更高版本，以及支持 POSIX 文件锁、文件与目录同步、原子替换的文件系统。
+
+| 组件 | 依赖声明 | CI 验证版本 |
+| --- | --- | --- |
+| Python | `>=3.11` | 3.11、3.12、3.13、3.14 |
+| Polars（可选） | `>=1.44.2,<3` | 1.44.2、2.0.0、2.1.0 |
+
+CI 验证上述 Python 与 Polars 版本的全部 12 组组合，并在四个 Python 版本上运行完整测试、wheel 构建、sdist 重建和隔离安装。具体检查见[仓库自动化](docs/automation.md)。
+
+从 PyPI 安装：
+
+```bash
+pip install asterstore
+# 需要使用 Polars 读写 Parquet 时：
+pip install 'asterstore[polars]'
+```
+
+在源码仓库根目录安装：
 
 ```bash
 pip install .
-# 运行可选的 Parquet 示例：
 pip install '.[polars]'
 ```
+
+核心不依赖 Polars；可选 extra 仅安装 Polars，由调用方直接读写数据文件。开发环境的 `uv.lock` 固定 Polars 2.1.0；通过 pip 安装时按上述依赖范围解析版本。开发使用 uv 0.13.6 或更高版本，见[贡献指南](CONTRIBUTING.md)。
+
+## 快速开始
 
 ```python
 from pathlib import Path
