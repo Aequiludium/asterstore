@@ -6,7 +6,7 @@ asterstore 采用数据集目录变更协议。变更须说明维护窗口、故
 
 ## 开发环境
 
-Python 3.11 或 3.12，本地 Linux/POSIX 环境，uv 0.13.6 或更高版本：
+Python 3.11–3.14，本地 Linux/POSIX 环境，uv 0.13.6 或更高版本：
 
 ```bash
 git clone https://github.com/Aequiludium/asterstore.git

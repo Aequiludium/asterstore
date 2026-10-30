@@ -5,9 +5,9 @@
 | 检查 | 内容 |
 | --- | --- |
 | Quality and protocol | Ruff、格式、mypy、Schema 与 codec 检查 |
-| Polars compatibility | Python 3.11/3.12 与三个 Polars 版本组合的测试和示例 |
-| Tests | 两个 Python 版本的完整测试、独立示例和容量检查 |
-| Distribution | wheel 构建、sdist 重建和隔离安装 |
+| Polars compatibility | Python 3.11–3.14 与三个 Polars 版本组合的测试和示例 |
+| Tests | 四个 Python 版本的完整测试、独立示例和容量检查 |
+| Distribution | 四个 Python 版本的 wheel 构建、sdist 重建和隔离安装 |
 | Release artifact verification | 下载发行制品并验证名称、版本、验收项和哈希 |
 | CI gate | 汇总必需任务结果，失败或跳过均不放行 |
 
