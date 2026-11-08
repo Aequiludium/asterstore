@@ -55,6 +55,15 @@ def main() -> None:
         ds.recover(quiescent=True)
         ds.clean()
         validate()
+        with patch.object(fs, "remove_tree", side_effect=OSError("deletion interrupted")):
+            try:
+                repo.drop_dataset("data", quiescent=True)
+            except OSError:
+                pass
+        validate()
+        assert json.loads((repo.control / "registry.json").read_bytes())["dropping"]
+        repo.drop_dataset("data", quiescent=True)
+        validate()
     assert shapes == {"registry.json", "dataset.json", "head.json", "record.json", "active.json"}
     print("Current protocol: PASS (format 4, five record shapes)")
 
