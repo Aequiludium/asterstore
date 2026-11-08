@@ -42,6 +42,9 @@ assert len(ds.clean()) == 2
 ds.rollback(quiescent=True, expected_revision=3)
 assert ds.path('value').read_bytes() == b'1'
 assert ds.current().undo is None
+repo.drop_dataset('data', expected_revision=4, quiescent=True)
+assert not ds.root.exists()
+assert repo.list_datasets() == ()
 print('Isolated format-4 installation OK:', installed)
 """
 

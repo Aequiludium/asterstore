@@ -55,7 +55,9 @@ class Repository:
             self.control / "registry.json", {"format": FORMAT, "kind": "registry", "datasets": {}}
         )
 
-    def _registry(self) -> dict[str, str]:
+    def _registry(
+        self, *, include_dropping: bool = False, requested: str | None = None
+    ) -> dict[str, str]:
         record = _format(self.control / "registry.json", "registry")
         datasets = record.get("datasets")
         if not isinstance(datasets, dict):
@@ -67,16 +69,27 @@ class Repository:
             if not Path(path).is_absolute() or os.path.abspath(path) != path:
                 raise StoreCorruptionError("noncanonical directory binding")
             result[name] = path
-        return result
+        dropping = record.get("dropping", {})
+        if not isinstance(dropping, dict) or any(
+            name not in result or type(revision) is not int or revision < 0
+            for name, revision in dropping.items()
+        ):
+            raise StoreCorruptionError("invalid dataset deletion intent")
+        if requested in dropping:
+            raise RecoveryRequiredError("dataset deletion in progress; retry drop_dataset()")
+        if include_dropping or not dropping:
+            return result
+        return {k: v for k, v in result.items() if k not in dropping}
 
     def create_dataset(self, name: str, path: str | Path) -> Dataset:
         if not isinstance(name, str) or not name or "\x00" in name:
             raise ValueError("dataset name must be a nonempty string")
-        self._registry()
+        self._registry(include_dropping=True)
         root = Path(path).resolve()
         fs.checked(root, missing=True)
         with fs.lock(self.control / "registry.lock"):
-            registry = self._registry()
+            registry = self._registry(include_dropping=True)
+            dropping = _format(self.control / "registry.json", "registry").get("dropping", {})
             if name in registry:
                 raise FileExistsError(name)
             for occupied in [self.control, *(Path(p) for p in registry.values())]:
@@ -103,6 +116,7 @@ class Repository:
                     "format": FORMAT,
                     "kind": "registry",
                     "datasets": registry,
+                    **({"dropping": dropping} if dropping else {}),
                 },
             )
         return Dataset(root, name)
@@ -114,8 +128,65 @@ class Repository:
     def dataset(self, name: str) -> Dataset:
         # Registered roots are already resolved. Do not follow a later redirect
         # of their physical directory to a different dataset.
-        root = fs.checked(Path(self._registry()[name]))
+        root = fs.checked(Path(self._registry(requested=name)[name]))
         return Dataset(root, name)
+
+    def drop_dataset(
+        self, name: str, *, expected_revision: int | None = None, quiescent: bool
+    ) -> None:
+        """Permanently remove an owned directory and registration, resuming on retry.
+
+        Stop all users of this dataset (including queued writers and lazy reads)
+        before calling; discard its old handles before reusing the name or path.
+        The revision is checked only before the durable deletion intent. Once
+        deletion starts, retry continues forward without needing dataset metadata.
+        """
+        _window(quiescent)
+        if not isinstance(name, str) or not name or "\x00" in name:
+            raise ValueError("dataset name must be a nonempty string")
+        with fs.lock(self.control / "registry.lock"):
+            registry = self._registry(include_dropping=True)
+            dropping = _format(self.control / "registry.json", "registry").get("dropping", {})
+            if name not in registry:
+                # Settle an earlier registry replacement whose fsync failed.
+                fs.sync_directory(self.control)
+                return
+            root = fs.checked(Path(registry[name]), missing=name in dropping)
+            for occupied in [self.control, *(Path(p) for n, p in registry.items() if n != name)]:
+                if root.is_relative_to(occupied) or occupied.is_relative_to(root):
+                    raise StoreCorruptionError("unsafe dataset deletion boundary")
+
+            def save_registry() -> None:
+                fs.write(
+                    self.control / "registry.json",
+                    {
+                        "format": FORMAT,
+                        "kind": "registry",
+                        "datasets": registry,
+                        **({"dropping": dropping} if dropping else {}),
+                    },
+                )
+
+            def finish() -> None:
+                # Settle intent durability before removing any owned bytes.
+                fs.sync_directory(self.control)
+                if root.exists():
+                    fs.remove_tree(root)
+                else:
+                    fs.sync_directory(root.parent)
+                del registry[name]
+                del dropping[name]
+                save_registry()
+
+            if name in dropping:
+                finish()
+            else:
+                dataset = Dataset(root, name)
+                with fs.lock(dataset.control / "writer.lock"):
+                    state = dataset._revision(expected_revision)
+                    dropping[name] = state.revision
+                    save_registry()
+                    finish()
 
 
 class Dataset:
