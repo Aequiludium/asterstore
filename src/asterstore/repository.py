@@ -20,6 +20,7 @@ from .errors import (
 )
 
 if TYPE_CHECKING:
+    from .maintenance import PruneBatch
     from .publishing import Batch
 
 
@@ -264,6 +265,25 @@ class Dataset:
             raise StoreCorruptionError("duplicate change paths")
         return record
 
+    @contextmanager
+    def prune(
+        self, *, expected_revision: int | None = None, quiescent: bool
+    ) -> Iterator[PruneBatch]:
+        """Plan permanent path deletion under the existing writer lock.
+
+        Stop all users of this dataset, including lazy readers and queued writers.
+        After an interrupted commit, call recover() before starting another batch.
+        """
+        from .maintenance import PruneBatch
+
+        _window(quiescent)
+        with fs.lock(self.control / "writer.lock"):
+            batch = PruneBatch(self, self._revision(expected_revision))
+            try:
+                yield batch
+            finally:
+                batch._closed = True
+
     def _restore(self, operation: str, record: dict[str, Any]) -> None:
         work = self.control / "work" / operation
         # Validate all backups before touching any formal data.
@@ -297,6 +317,10 @@ class Dataset:
             self._sync_control()
             return head
         active = fs.read(active_path)
+        if active.get("kind") == "prune":
+            from .maintenance import recover_prune
+
+            return recover_prune(self, active)
         if set(active) != {"kind", "id", "source", "before"}:
             raise StoreCorruptionError("invalid active transaction")
         operation, source = identity(active["id"]), identity(active["source"])

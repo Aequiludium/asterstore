@@ -9,6 +9,7 @@ from .errors import (
     StoreCorruptionError,
     UnsupportedFormatError,
 )
+from .maintenance import PruneBatch
 from .publishing import Batch
 from .repository import Dataset, Repository
 
@@ -18,6 +19,7 @@ __all__ = [
     "Dataset",
     "NoRollbackError",
     "PublicationConflictError",
+    "PruneBatch",
     "RecoveryRequiredError",
     "Repository",
     "State",

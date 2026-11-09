@@ -13,7 +13,7 @@
     dataset.json          # format、kind、name
     writer.lock
     head.json             # revision、operation、publication、metadata、undo
-    active.json           # 仅安装或恢复期间存在
+    active.json           # 仅发布安装、回退或永久删除维护期间存在
     work/<操作ID>/
       staged/<相对路径>    # 新文件，安装时移动到正式路径
       backup/<相对路径>    # 仅本次涉及的旧文件
@@ -64,6 +64,22 @@ clean 只遍历本数据集 work 的工作目录及待删目录内容，不遍�
 两次 clean 之间旧备份和记录仍占空间，定期 clean 才使保留材料收敛为一份。清理期间无需停读正式数据，但必须持有数据集写锁。
 
 初始化要求空目录，不做非空目录接管。初始化中断可能留下未登记的控制目录，不能自动递归删除；部署时核对该空数据目录的初始化残留后重新建立。目录登记不提供跨仓库并发初始化保证。
+
+## 永久删除业务路径的维护事务
+
+`Dataset.prune()` 使用已有 dataset 写锁，不获取登记锁。在调用方停止该 dataset 全部使用的窗口内执行：
+
+1. 获取写锁并校验 expected_revision，向调用方提供 before State 和新操作 ID。调用方在同一锁内选择目标并生成 metadata。
+2. 提交前检查全部显式目标和本 dataset 的旧 work 子树，拒绝越界、软链接、特殊文件、硬链接别名、嵌套控制路径和跨文件系统路径。重复或父子重叠目标拒绝，不存在目标允许。
+3. 原子持久化 `active.json = {kind: "prune", id, before: State, metadata, paths: [相对业务路径], work: [旧操作ID]}`。此意图同时记录最终业务元数据及明确删除范围；不创建新 work、record 或 backup。
+4. 同步意图所在控制目录后，删除全部业务目标及记录中的全部旧 work 目录，同步被删目录／文件的父目录。清除旧 work 包括整份有效 undo 和全部失效材料。
+5. 原子写 head：`revision=before.revision+1, operation=publication=id, metadata=意图中元数据, undo=null`。同步 head 与控制目录，再移除并同步 active。
+
+恢复入口在已有活动事务分支中识别 prune。head 必须完整等于 before 或预期的新 State，否则拒绝。恢复只按意图继续删除和补同步，不读取可能已部分删除的旧事务 record/backup，不恢复已删数据，不重验首次 CAS。目标及父目录已不存在时同步最近仍存在的父目录；head 已更新时保持其身份不变，继续完成同步和意图清除。不存在 active 的 recover 仍沿用原逻辑。
+
+active 存在期间，现有 current 检查已阻止普通发布、回退、清理及整体删除；读者协调仍由调用方负责，已构造的文件查询不会被自动撤回。日常读取／发布／清理没有新增控制查询、锁或扫描；只有已有活动事务恢复分支增加类型分派。写入 prune 意图后异常必须用 recover 续删，不能新开 prune 跳过未完成操作。
+
+本扩展保持 format 4 和原 State 字段不变。旧客户端不能恢复新的 active 记录形状，会拒绝而非按可回退发布处理；因此维护及其恢复必须使用含 prune 支持的客户端。完成后旧客户端可读取原形状的 head（undo=null）。该能力从 0.5.5 起提供，0.5.4 不包含它；维护及恢复客户端的最低版本为 0.5.5。调用方业务 metadata 的最低版本另行约束。
 
 ## 整体删除与续删
 
