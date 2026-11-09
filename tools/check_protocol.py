@@ -55,6 +55,17 @@ def main() -> None:
         ds.recover(quiescent=True)
         ds.clean()
         validate()
+        with patch.object(fs, "unlink", side_effect=OSError("prune interrupted")):
+            try:
+                with ds.prune(quiescent=True) as maintenance:
+                    maintenance.delete("value")
+                    maintenance.commit(metadata={"prune": maintenance.id})
+            except OSError:
+                pass
+        validate()
+        assert json.loads((ds.control / "active.json").read_bytes())["kind"] == "prune"
+        ds.recover(quiescent=True)
+        validate()
         with patch.object(fs, "remove_tree", side_effect=OSError("deletion interrupted")):
             try:
                 repo.drop_dataset("data", quiescent=True)
@@ -65,7 +76,7 @@ def main() -> None:
         repo.drop_dataset("data", quiescent=True)
         validate()
     assert shapes == {"registry.json", "dataset.json", "head.json", "record.json", "active.json"}
-    print("Current protocol: PASS (format 4, five record shapes)")
+    print("Current protocol: PASS (format 4, five record filenames, prune recovery)")
 
 
 if __name__ == "__main__":

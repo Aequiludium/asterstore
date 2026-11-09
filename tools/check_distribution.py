@@ -42,7 +42,13 @@ assert len(ds.clean()) == 2
 ds.rollback(quiescent=True, expected_revision=3)
 assert ds.path('value').read_bytes() == b'1'
 assert ds.current().undo is None
-repo.drop_dataset('data', expected_revision=4, quiescent=True)
+with ds.prune(expected_revision=4, quiescent=True) as maintenance:
+    maintenance.delete('value')
+    state = maintenance.commit(metadata={'publication_id': maintenance.id})
+assert state.revision == 5 and state.publication == state.metadata['publication_id']
+assert state.undo is None and not ds.path('value').exists()
+assert list((ds.control / 'work').iterdir()) == []
+repo.drop_dataset('data', expected_revision=5, quiescent=True)
 assert not ds.root.exists()
 assert repo.list_datasets() == ()
 print('Isolated format-4 installation OK:', installed)

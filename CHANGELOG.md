@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.5 — 2026-11-09
+
+- 新增 `Dataset.prune()` / `PruneBatch`：在既有写锁和维护窗口内永久删除显式文件或目录，并原子提交调用方元数据；支持 CAS、操作 ID 和中断后的向前恢复。
+- 维护提交失效整个 undo 并清除本 dataset 全部旧 work/backup；不创建新撤销备份，保留其他正式路径及登记。
+- format 4 增加 `kind=prune` 的 active 记录变体；旧客户端不能续删。普通读取、发布、清理和 `drop_dataset()` 不增加 I/O、扫描或锁，既有删除／回退语义不变。
+
 ## 0.5.4 — 2026-11-08
 
 - 新增 `Repository.drop_dataset()`，在停止目标数据集全部使用的维护窗口内永久删除独占目录及注册，支持首次 revision 校验、持久化删除意图和中断续删。

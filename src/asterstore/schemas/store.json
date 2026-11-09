@@ -177,6 +177,50 @@
         "before"
       ],
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "prune"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "before": {
+          "$ref": "#/$defs/state"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "work": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "before",
+        "metadata",
+        "paths",
+        "work"
+      ],
+      "additionalProperties": false
     }
   ]
 }
